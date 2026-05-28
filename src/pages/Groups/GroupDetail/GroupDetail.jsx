@@ -1,0 +1,323 @@
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { api } from "../../../api/api";
+import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
+import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
+import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded';
+import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import UygaVazifa from './UygaVazifa';
+import Videolar from './Videolar';
+
+const DAY_UZ = { MONDAY:"Du", TUESDAY:"Se", WEDNESDAY:"Ch", THURSDAY:"Pa", FRIDAY:"Ju", SATURDAY:"Sha", SUNDAY:"Yak" };
+
+export default function GroupDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [currentMonth, setCurrentMonth] = useState(0);
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [schedules, setSchedules] = useState([]);
+  const [groupDetails, setGroupDetails] = useState(location.state?.groupData || null);
+  const [videoRefresh, setVideoRefresh] = useState(0);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [selectedVideoFile, setSelectedVideoFile] = useState(null);
+  const [videoFileName, setVideoFileName] = useState("");
+  const [selectedLessonId, setSelectedLessonId] = useState("");
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [groupLessons, setGroupLessons] = useState([]);
+  const [showAllSchedules, setShowAllSchedules] = useState(false);
+  const fileInputRef = useRef(null);
+  const schedulesFetchedRef = useRef(false);
+  const groupDetailsFetchedRef = useRef(false);
+  const lessonsFetchedRef = useRef(false);
+  const detailedFetchedRef = useRef(false);
+
+  const tabIndex = searchParams.get("tab") || "0";
+  const activeTab = tabIndex === "1" ? "Guruh darsliklari" : tabIndex === "2" ? "Akademik davomati" : "Ma'lumotlar";
+  const activeSubTab = searchParams.get("subtab") || "Uyga vazifa";
+  const handleTabChange = (i) => setSearchParams({ tab: i });
+  const setActiveSubTab = (s) => { const p = new URLSearchParams(searchParams); p.set("subtab", s); setSearchParams(p); };
+
+  const formatDate = (s) => {
+    if (!s) return "";
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return "";
+    const M = ["Yan","Fev","Mar","Apr","May","Iyun","Iyul","Avg","Sen","Okt","Noy","Dek"];
+    return `${String(d.getDate()).padStart(2,'0')} ${M[d.getMonth()]}, ${d.getFullYear()}`;
+  };
+  const calculateEndTime = (t, h = 2) => {
+    if (!t) return "";
+    const [hh, mm] = t.split(":").map(Number);
+    const d = new Date(); d.setHours(hh + h, mm);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  };
+  const calculateEndDate = (s, months) => {
+    if (!s) return "";
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return "";
+    d.setMonth(d.getMonth() + (parseInt(months, 10) || 0));
+    return d.toISOString();
+  };
+  const translateDays = (days) => !days || !Array.isArray(days) ? "" : days.map(d => DAY_UZ[d] || d).join("/");
+
+  const handleModalClose = () => { setIsVideoModalOpen(false); setSelectedVideoFile(null); setVideoFileName(""); setSelectedLessonId(""); };
+  const handleFileSelect = (e) => { const f = e.target.files[0]; if (f) { setSelectedVideoFile(f); setVideoFileName(f.name); } };
+
+  const handleVideoUpload = async () => {
+    if (!selectedVideoFile || !selectedLessonId) return;
+    setIsUploadingVideo(true);
+    try {
+      const fd = new FormData(); fd.append("file", selectedVideoFile);
+      await api.post(`/files/group/${id}/upload?lessonId=${selectedLessonId}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      setVideoRefresh(p => p + 1); handleModalClose();
+    } catch { /* silent */ }
+    finally { setIsUploadingVideo(false); }
+  };
+
+  useEffect(() => {
+    if (id && tabIndex === "0" && !schedulesFetchedRef.current) {
+      schedulesFetchedRef.current = true;
+      api.get(`/groups/${id}/schedules`).then(res => {
+        const formatted = [];
+        (res.data || []).forEach(item => {
+          Object.keys(item).sort((a,b) => Number(a)-Number(b)).forEach(key => {
+            const v = item[key];
+            formatted.push({ id: key, label: `${key}-o'quv oyi`, isCurrent: v.isActive, days: v.days.map((d, di) => ({ id: `${key}-${di}`, day: d.day, month: d.month, isCompleted: d.isCompleted })) });
+          });
+        });
+        setSchedules(formatted);
+      }).catch(() => { schedulesFetchedRef.current = false; });
+    }
+  }, [id, tabIndex]);
+
+  useEffect(() => {
+    if (id && tabIndex === "0" && !groupDetailsFetchedRef.current) {
+      if (location.state?.groupData) { groupDetailsFetchedRef.current = true; return; }
+      groupDetailsFetchedRef.current = true;
+      api.get(`/groups/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) }))).catch(() => { groupDetailsFetchedRef.current = false; });
+    }
+  }, [id, tabIndex, location.state]);
+
+  useEffect(() => {
+    if (id && tabIndex === "0" && !detailedFetchedRef.current) {
+      detailedFetchedRef.current = true;
+      api.get(`/groups/one/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) }))).catch(() => { detailedFetchedRef.current = false; });
+    }
+  }, [id, tabIndex]);
+
+  useEffect(() => {
+    if (id && isVideoModalOpen && !lessonsFetchedRef.current) {
+      lessonsFetchedRef.current = true;
+      api.get(`/lessons/my/group/${id}`).then(res => { const d = res.data.data || res.data || []; setGroupLessons(Array.isArray(d) ? d : [d]); }).catch(() => { lessonsFetchedRef.current = false; });
+    }
+  }, [id, isVideoModalOpen]);
+
+  const fakeCalendarDays = [2,5,7,9,12,14,16,19,21,23,26,28,30].map(d => ({ day: d, month: "May" }));
+
+  return (
+    <div className="pt-6 flex flex-col gap-5 flex-1 min-h-0 overflow-auto pb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate("/dashboard/groups")} className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+            <ArrowBackIosNewRoundedIcon fontSize="small" />
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900">{groupDetails?.name || ""}</h1>
+          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">{groupDetails?.status || "Aktiv"}</span>
+        </div>
+        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <AssessmentOutlinedIcon fontSize="small" />Statistika
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-200 pb-0">
+        {["Ma'lumotlar", "Guruh darsliklari", "Akademik davomati"].map((tab, i) => (
+          <button key={tab} onClick={() => handleTabChange(String(i))} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${activeTab === tab ? 'border-[#6c35de] text-[#6c35de]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>{tab}</button>
+        ))}
+      </div>
+
+      {/* Tab 0: Ma'lumotlar */}
+      {activeTab === "Ma'lumotlar" && (
+        <>
+          <div className="grid grid-cols-2 gap-5">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+              <h3 className="text-sm font-bold text-slate-900 mb-4">Mentors</h3>
+              <div className="flex flex-wrap gap-4">
+                {groupDetails?.teachers?.map((t, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2">
+                    <img src={t.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name || 'T')}&background=f8fafc&color=6c35de&size=128`} alt={t.full_name} className="w-14 h-14 rounded-full object-cover" />
+                    <span className="text-xs text-[#6c35de] font-medium">Teacher</span>
+                    <span className="text-xs font-semibold text-slate-800 text-center">{t.full_name || t.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+              <h3 className="text-sm font-bold text-slate-900 mb-4">Guruh parametrlari</h3>
+              <div className="flex flex-col gap-3">
+                {[
+                  ["Yo'nalish", groupDetails?.course?.name || ""],
+                  ["O'rtacha yosh", `${groupDetails?.averageAge ?? 0} yosh`],
+                  ["Sig'imi", `${groupDetails?.room_capacity ?? 0} ta`],
+                  ["Hozirgi o'quvchilar", `${groupDetails?.student_count ?? 0} ta`],
+                  ["Kurs davomiyligi", `${groupDetails?.course?.duration_month ?? 0} oy`],
+                  ["Darslar soni (Jami)", `${schedules.reduce((s,m) => s + m.days.length, 0)} ta`],
+                ].map(([k,v]) => (
+                  <div key={k} className="flex items-center justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-sm text-slate-500">{k}</span>
+                    <strong className="text-sm text-slate-900">{v}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+            <h2 className="text-base font-bold text-slate-900 mb-4">Dars jadvali</h2>
+            <div className="flex flex-col gap-3 mb-4">
+              {(showAllSchedules ? groupDetails?.teachers || [] : (groupDetails?.teachers || []).slice(0, 2)).map((teacher, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                  <span className="text-sm font-semibold text-slate-800">{teacher.full_name || teacher.name}</span>
+                  <div className="flex items-center gap-4 text-sm text-slate-500">
+                    <span>{translateDays(groupDetails?.week_day)}</span>
+                    <span>{groupDetails?.start_time} - {calculateEndTime(groupDetails?.start_time, 2)}</span>
+                    <span>{formatDate(groupDetails?.start_date)} - {formatDate(calculateEndDate(groupDetails?.start_date, groupDetails?.course?.duration_month))}</span>
+                    <span>{groupDetails?.room}</span>
+                  </div>
+                </div>
+              ))}
+              {(groupDetails?.teachers?.length || 0) > 2 && (
+                <button onClick={() => setShowAllSchedules(p => !p)} className="text-sm text-[#6c35de] font-medium hover:underline self-start">
+                  {showAllSchedules ? "Yashirish" : `Yana ko'rsatish (${groupDetails.teachers.length - 2})`}
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 mb-4">
+              <button onClick={() => setCurrentMonth(p => Math.max(0, p-1))} disabled={currentMonth === 0} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
+              <span className="text-sm font-semibold text-slate-800">{schedules[currentMonth]?.label || ""}</span>
+              <button onClick={() => setCurrentMonth(p => Math.min(schedules.length - 1, p+1))} disabled={currentMonth >= schedules.length - 1 || schedules.length === 0} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"><KeyboardArrowRightRoundedIcon fontSize="small" /></button>
+            </div>
+
+            {(showAllMonths ? schedules : schedules.slice(currentMonth, currentMonth+1)).map((sm, idx) => (
+              <div key={idx} className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-sm font-semibold text-slate-700">{sm.label}</span>
+                  {sm.isCurrent && <span className="px-2 py-0.5 bg-[#6c35de]/10 text-[#6c35de] rounded-full text-xs font-medium">Joriy oy</span>}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {sm.days.map(d => (
+                    <div key={d.id} onClick={() => navigate(`/dashboard/groups/${id}/lesson/2026-05-${String(d.day).padStart(2,'0')}`)}
+                      className={`flex flex-col items-center px-3 py-2 rounded-xl border cursor-pointer transition-all hover:border-[#6c35de] hover:bg-[#6c35de]/5 ${d.isCompleted ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}>
+                      <span className="text-xs text-slate-400">{d.month}</span>
+                      <span className="text-sm font-bold text-slate-800">{d.day}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {schedules.length > 1 && (
+              <button onClick={() => setShowAllMonths(p => !p)} className="text-sm text-[#6c35de] font-medium hover:underline">
+                {showAllMonths ? "Yopish" : "Barchasini ko'rish"}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Tab 1: Guruh darsliklari */}
+      {activeTab === "Guruh darsliklari" && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-bold text-slate-900">Guruh darsliklari</h2>
+              <div className="flex gap-1">
+                {["Uyga vazifa","Videolar","Imtihonlar","Jurnal"].map(t => (
+                  <button key={t} onClick={() => setActiveSubTab(t)} className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${activeSubTab === t ? 'bg-[#6c35de] text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{t}</button>
+                ))}
+              </div>
+            </div>
+            <button onClick={() => { if (activeSubTab === "Videolar") setIsVideoModalOpen(true); else navigate(`/dashboard/groups/${id}/homework/create`); }} className="px-4 py-2 bg-[#6c35de] text-white text-sm font-semibold rounded-lg hover:bg-[#5a2cc0] transition-colors">Qo'shish</button>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-auto">
+            {activeSubTab === "Uyga vazifa" && <UygaVazifa />}
+            {activeSubTab === "Videolar" && <Videolar refreshTrigger={videoRefresh} />}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Akademik davomati */}
+      {activeTab === "Akademik davomati" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-5">
+            <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
+            <span className="text-sm font-semibold text-slate-800">May 2026</span>
+            <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowRightRoundedIcon fontSize="small" /></button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {fakeCalendarDays.map((item, i) => (
+              <div key={i} onClick={() => navigate(`/dashboard/groups/${id}/lesson/2026-05-${String(item.day).padStart(2,'0')}`)}
+                className="flex flex-col items-center px-4 py-3 rounded-xl bg-[#6c35de]/10 border border-[#6c35de]/20 cursor-pointer hover:bg-[#6c35de]/20 transition-colors">
+                <span className="text-xs text-[#6c35de]">{item.month}</span>
+                <span className="text-base font-bold text-[#6c35de]">{item.day}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Video Upload Modal */}
+      {isVideoModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={handleModalClose}>
+          <div className="bg-white rounded-2xl w-[640px] max-w-[95vw] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900">Video qo'shish</h2>
+              <button onClick={handleModalClose} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg"><CloseRoundedIcon fontSize="small" /></button>
+            </div>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-3 p-8 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-[#6c35de] hover:bg-[#6c35de]/5 transition-all">
+                <CloudUploadOutlinedIcon className="text-slate-400" style={{ fontSize: 40 }} />
+                <p className="text-sm text-slate-600 text-center">Videofaylni yuklash uchun bosing yoki faylni shu yerga olib keling</p>
+                <p className="text-xs text-slate-400">.mp4, .webm, .mpeg, .avi, .mkv, .m4v, .mov</p>
+              </div>
+              {selectedVideoFile && (
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-slate-200"><th className="text-left py-2 text-slate-500 font-semibold text-xs">File name</th><th className="text-left py-2 text-slate-500 font-semibold text-xs">Dars</th><th className="text-left py-2 text-slate-500 font-semibold text-xs">Video nomi</th><th></th></tr></thead>
+                    <tbody>
+                      <tr>
+                        <td className="py-2 text-slate-700 pr-3">{selectedVideoFile.name}</td>
+                        <td className="py-2 pr-3">
+                          <select value={selectedLessonId} onChange={e => setSelectedLessonId(e.target.value)} className="h-9 px-2 border border-slate-200 rounded-lg text-sm bg-white w-36 focus:border-[#6c35de] outline-none">
+                            <option value="" disabled>Tanlang</option>
+                            {groupLessons.map(l => <option key={l.id} value={l.id}>{l.topic || l.title || l.name}</option>)}
+                          </select>
+                        </td>
+                        <td className="py-2 pr-3"><input type="text" value={videoFileName} onChange={e => setVideoFileName(e.target.value)} className="h-9 px-2 border border-slate-200 rounded-lg text-sm w-full focus:border-[#6c35de] outline-none" /></td>
+                        <td className="py-2"><button onClick={() => setSelectedVideoFile(null)} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><DeleteOutlineRoundedIcon fontSize="small" /></button></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".mp4,.webm,.mpeg,.avi,.mkv,.m4v,.ogm,.mov" onChange={handleFileSelect} />
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={handleModalClose} disabled={isUploadingVideo} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50">Bekor qilish</button>
+              {selectedVideoFile && (
+                <button onClick={handleVideoUpload} disabled={isUploadingVideo} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c35de] rounded-lg hover:bg-[#5a2cc0] transition-colors disabled:opacity-50">
+                  {isUploadingVideo ? "Yuklanmoqda..." : "Fayllarni yuklash"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
