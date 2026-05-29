@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SchoolRoundedIcon from "@mui/icons-material/SchoolRounded";
 import GroupRoundedIcon from '@mui/icons-material/GroupRounded';
 import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
@@ -24,12 +24,40 @@ const accordionItems = [
 
 export default function Dashboard() {
   const [openAccordion, setOpenAccordion] = useState(0);
+  const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("currentUser");
+      if (raw) {
+        const user = JSON.parse(raw);
+        // Turli field nomlarni qo'llab-quvvatlash
+        const name =
+          user?.first_name && user?.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user?.full_name || user?.name || user?.phone || "";
+        const role =
+          user?.role === "SUPERADMIN" ? "Super Admin" :
+          user?.role === "ADMIN"      ? "Admin"       :
+          user?.role === "TEACHER"    ? "O'qituvchi"  :
+          user?.role || "";
+        setUserName(name);
+        setUserRole(role);
+      }
+    } catch { /* silent */ }
+  }, []);
 
   return (
     <div className="pt-6 flex flex-col gap-6 flex-1 min-h-0 overflow-auto pb-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Salom!</h1>
-        <p className="text-sm text-slate-500 mt-1">Najot CRM platformasiga xush kelibsiz!</p>
+        <h1 className="text-2xl font-bold text-slate-900">
+          Salom, <span className="text-[#6c35de]">{userName || "Foydalanuvchi"}</span>!
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          {userRole && <span className="font-semibold text-slate-700">{userRole} • </span>}
+          Najot CRM platformasiga xush kelibsiz!
+        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">

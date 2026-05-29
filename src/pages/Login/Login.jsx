@@ -5,12 +5,15 @@ import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 
 export default function Login() {
   const { dark, toggleDark, lang, toggleLang, t } = useApp();
   const [input, setInput] = useState({ phone: '', password: '' });
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
 
   function Submit(e) {
@@ -20,8 +23,12 @@ export default function Login() {
         const auth = res.data?.accessToken;
         if (auth) {
           sessionStorage.setItem("accessToken", auth);
+          // Foydalanuvchi ma'lumotlarini saqlash
+          const user = res.data?.user || res.data?.admin || res.data?.data || {};
+          if (user) sessionStorage.setItem("currentUser", JSON.stringify(user));
           setSuccess(true);
-          setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
+          setShowToast(true);
+          setTimeout(() => navigate('/dashboard', { replace: true }), 1500);
         } else { setError(true); }
       } else { setError(true); }
     }).catch(() => setError(true));
@@ -35,6 +42,44 @@ export default function Login() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: dark ? '#0a0a0f' : '#eef0f5' }}>
+
+      {/* Muvaffaqiyatli kirish toast — o'ng yuqori */}
+      {showToast && (
+        <div style={{
+          position: 'fixed',
+          top: 20,
+          right: 20,
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '14px 18px',
+          background: '#f0fdf4',
+          border: '1.5px solid #bbf7d0',
+          borderRadius: 14,
+          boxShadow: '0 4px 20px rgba(34,197,94,0.15)',
+          animation: 'slideIn 0.3s ease',
+          minWidth: 240,
+        }}>
+          <CheckCircleRoundedIcon style={{ color: '#22c55e', fontSize: 22, flexShrink: 0 }} />
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#15803d', flex: 1 }}>
+            Muvaffaqiyatli kirildi
+          </span>
+          <button
+            onClick={() => setShowToast(false)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#86efac', display: 'flex' }}
+          >
+            <CloseRoundedIcon style={{ fontSize: 16 }} />
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(30px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
 
       {/* LEFT — ko'k panel, rasm */}
       <div style={{
@@ -148,11 +193,6 @@ export default function Login() {
               <Collapse in={error}>
                 <Alert severity="error" sx={{ fontSize: '0.82rem', borderRadius: '10px', fontFamily: 'inherit', mb: 0.5 }}>
                   {t.loginError}
-                </Alert>
-              </Collapse>
-              <Collapse in={success}>
-                <Alert severity="success" sx={{ fontSize: '0.82rem', borderRadius: '10px', fontFamily: 'inherit', mb: 0.5 }}>
-                  {t.loginSuccess}
                 </Alert>
               </Collapse>
 
