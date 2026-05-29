@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api } from "../../../api/api";
 import { toast } from "../../../components/UI/Toast/Toast";
+import { useApp } from "../../../context/AppContext";
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded';
@@ -13,12 +14,15 @@ import UygaVazifa from './UygaVazifa';
 import Videolar from './Videolar';
 
 const DAY_UZ = { MONDAY:"Du", TUESDAY:"Se", WEDNESDAY:"Ch", THURSDAY:"Pa", FRIDAY:"Ju", SATURDAY:"Sha", SUNDAY:"Yak" };
+const DAY_RU = { MONDAY:"Пн", TUESDAY:"Вт", WEDNESDAY:"Ср", THURSDAY:"Чт", FRIDAY:"Пт", SATURDAY:"Сб", SUNDAY:"Вс" };
 
 export default function GroupDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t, lang } = useApp();
+
   const [currentMonth, setCurrentMonth] = useState(0);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [schedules, setSchedules] = useState([]);
@@ -41,9 +45,12 @@ export default function GroupDetail() {
   const lessonsFetchedRef = useRef(false);
   const detailedFetchedRef = useRef(false);
 
+  const TABS_LABELS = [t.groupInfo, t.groupLessons, t.academicAttendance];
+  const SUBTABS = [t.homework, t.videos, t.exams, t.journal];
+
   const tabIndex = searchParams.get("tab") || "0";
-  const activeTab = tabIndex === "1" ? "Guruh darsliklari" : tabIndex === "2" ? "Akademik davomati" : "Ma'lumotlar";
-  const activeSubTab = searchParams.get("subtab") || "Uyga vazifa";
+  const activeTab = TABS_LABELS[Number(tabIndex)] || TABS_LABELS[0];
+  const activeSubTab = searchParams.get("subtab") || SUBTABS[0];
   const handleTabChange = (i) => setSearchParams({ tab: i });
   const setActiveSubTab = (s) => { const p = new URLSearchParams(searchParams); p.set("subtab", s); setSearchParams(p); };
 
@@ -54,9 +61,9 @@ export default function GroupDetail() {
     const M = ["Yan","Fev","Mar","Apr","May","Iyun","Iyul","Avg","Sen","Okt","Noy","Dek"];
     return `${String(d.getDate()).padStart(2,'0')} ${M[d.getMonth()]}, ${d.getFullYear()}`;
   };
-  const calculateEndTime = (t, h = 2) => {
-    if (!t) return "";
-    const [hh, mm] = t.split(":").map(Number);
+  const calculateEndTime = (time, h = 2) => {
+    if (!time) return "";
+    const [hh, mm] = time.split(":").map(Number);
     const d = new Date(); d.setHours(hh + h, mm);
     return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   };
@@ -67,7 +74,10 @@ export default function GroupDetail() {
     d.setMonth(d.getMonth() + (parseInt(months, 10) || 0));
     return d.toISOString();
   };
-  const translateDays = (days) => !days || !Array.isArray(days) ? "" : days.map(d => DAY_UZ[d] || d).join("/");
+  const translateDays = (days) => {
+    const map = lang === 'ru' ? DAY_RU : DAY_UZ;
+    return !days || !Array.isArray(days) ? "" : days.map(d => map[d] || d).join("/");
+  };
 
   const handleModalClose = () => { setIsVideoModalOpen(false); setSelectedVideoFile(null); setVideoFileName(""); setSelectedLessonId(""); };
   const handleFileSelect = (e) => { const f = e.target.files[0]; if (f) { setSelectedVideoFile(f); setVideoFileName(f.name); } };
@@ -87,18 +97,14 @@ export default function GroupDetail() {
     if (selectedStudentIds.length === 0) return;
     setIsAddingStudent(true);
     try {
-      await Promise.all(
-        selectedStudentIds.map(student_id =>
-          api.post('/student-group', { student_id, group_id: Number(id) })
-        )
-      );
+      await Promise.all(selectedStudentIds.map(student_id => api.post('/student-group', { student_id, group_id: Number(id) })));
       detailedFetchedRef.current = false;
       setIsAddStudentModalOpen(false);
       setSelectedStudentIds([]);
       api.get(`/groups/one/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) })));
-      toast.success(`${selectedStudentIds.length} ta talaba muvaffaqiyatli qo'shildi`);
+      toast.success(`${selectedStudentIds.length} ${t.studentAddSuccess}`);
     } catch {
-      toast.error("Talaba qo'shishda xatolik yuz berdi");
+      toast.error(t.studentAddError);
     } finally {
       setIsAddingStudent(false);
     }
@@ -112,13 +118,13 @@ export default function GroupDetail() {
         (res.data || []).forEach(item => {
           Object.keys(item).sort((a,b) => Number(a)-Number(b)).forEach(key => {
             const v = item[key];
-            formatted.push({ id: key, label: `${key}-o'quv oyi`, isCurrent: v.isActive, days: v.days.map((d, di) => ({ id: `${key}-${di}`, day: d.day, month: d.month, isCompleted: d.isCompleted })) });
+            formatted.push({ id: key, label: `${key}-${lang === 'ru' ? 'уч. месяц' : "o'quv oyi"}`, isCurrent: v.isActive, days: v.days.map((d, di) => ({ id: `${key}-${di}`, day: d.day, month: d.month, isCompleted: d.isCompleted })) });
           });
         });
         setSchedules(formatted);
       }).catch(() => { schedulesFetchedRef.current = false; });
     }
-  }, [id, tabIndex]);
+  }, [id, tabIndex, lang]);
 
   useEffect(() => {
     if (id && tabIndex === "0" && !groupDetailsFetchedRef.current) {
@@ -153,34 +159,34 @@ export default function GroupDetail() {
             <ArrowBackIosNewRoundedIcon fontSize="small" />
           </button>
           <h1 className="text-2xl font-bold text-slate-900">{groupDetails?.name || ""}</h1>
-          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">{groupDetails?.status || "Aktiv"}</span>
+          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">{groupDetails?.status || t.active}</span>
         </div>
         <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-          <AssessmentOutlinedIcon fontSize="small" />Statistika
+          <AssessmentOutlinedIcon fontSize="small" />{t.statistics}
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-0">
-        {["Ma'lumotlar", "Guruh darsliklari", "Akademik davomati"].map((tab, i) => (
-          <button key={tab} onClick={() => handleTabChange(String(i))} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${activeTab === tab ? 'border-[#6c35de] text-[#6c35de]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>{tab}</button>
+      <div className="flex gap-2 border-b border-slate-200 pb-0 overflow-x-auto">
+        {TABS_LABELS.map((tab, i) => (
+          <button key={tab} onClick={() => handleTabChange(String(i))} className={`flex-shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-all ${activeTab === tab ? 'border-[#6c35de] text-[#6c35de]' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>{tab}</button>
         ))}
       </div>
 
       {/* Tab 0: Ma'lumotlar */}
-      {activeTab === "Ma'lumotlar" && (
+      {activeTab === TABS_LABELS[0] && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-slate-900">Mentors</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t.mentors}</h3>
               </div>
               <div className="flex flex-wrap gap-4">
-                {groupDetails?.teachers?.map((t, i) => (
+                {groupDetails?.teachers?.map((teacher, i) => (
                   <div key={i} className="flex flex-col items-center gap-2">
-                    <img src={t.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name || 'T')}&background=f8fafc&color=6c35de&size=128`} alt={t.full_name} className="w-14 h-14 rounded-full object-cover" />
-                    <span className="text-xs text-[#6c35de] font-medium">Teacher</span>
-                    <span className="text-xs font-semibold text-slate-800 text-center">{t.full_name || t.name}</span>
+                    <img src={teacher.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(teacher.full_name || 'T')}&background=f8fafc&color=6c35de&size=128`} alt={teacher.full_name} className="w-14 h-14 rounded-full object-cover" />
+                    <span className="text-xs text-[#6c35de] font-medium">{t.teacher2}</span>
+                    <span className="text-xs font-semibold text-slate-800 text-center">{teacher.full_name || teacher.name}</span>
                   </div>
                 ))}
               </div>
@@ -189,56 +195,38 @@ export default function GroupDetail() {
             {/* Talabalar kartasi */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-slate-900">Talabalar</h3>
-                <button
-                  onClick={() => {
-                    if (allStudents.length === 0) {
-                      api.get('/students').then(res => {
-                        setAllStudents(res.data?.data || []);
-                        setIsAddStudentModalOpen(true);
-                      }).catch(() => setIsAddStudentModalOpen(true));
-                    } else {
-                      setIsAddStudentModalOpen(true);
-                    }
-                  }}
-                  className="flex items-center gap-1 text-xs text-[#6c35de] font-semibold hover:underline"
-                >
-                  + Qo'shish
+                <h3 className="text-sm font-bold text-slate-900">{t.students2}</h3>
+                <button onClick={() => { if (allStudents.length === 0) { api.get('/students').then(res => { setAllStudents(res.data?.data || []); setIsAddStudentModalOpen(true); }).catch(() => setIsAddStudentModalOpen(true)); } else { setIsAddStudentModalOpen(true); } }} className="flex items-center gap-1 text-xs text-[#6c35de] font-semibold hover:underline">
+                  + {t.add}
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {(groupDetails?.students || []).slice(0, 8).map((s, i) => (
                   <div key={i} className="flex flex-col items-center gap-1.5">
-                    <div className="w-10 h-10 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-xs font-semibold">
-                      {s.full_name?.charAt(0).toUpperCase() || 'T'}
-                    </div>
+                    <div className="w-10 h-10 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-xs font-semibold">{s.full_name?.charAt(0).toUpperCase() || 'T'}</div>
                     <span className="text-xs text-slate-600 text-center max-w-[60px] truncate">{s.full_name || s.name}</span>
                   </div>
                 ))}
                 {(groupDetails?.students?.length || 0) > 8 && (
                   <div className="flex flex-col items-center gap-1.5">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">
-                      +{groupDetails.students.length - 8}
-                    </div>
+                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">+{groupDetails.students.length - 8}</div>
                   </div>
                 )}
               </div>
-              {(groupDetails?.students?.length || 0) === 0 && (
-                <p className="text-sm text-slate-400 text-center py-4">Talaba qo'shilmagan</p>
-              )}
+              {(groupDetails?.students?.length || 0) === 0 && <p className="text-sm text-slate-400 text-center py-4">{t.noStudentsAdded}</p>}
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h3 className="text-sm font-bold text-slate-900 mb-4">Guruh parametrlari</h3>
+              <h3 className="text-sm font-bold text-slate-900 mb-4">{t.groupParams}</h3>
               <div className="flex flex-col gap-3">
                 {[
-                  ["Yo'nalish", groupDetails?.course?.name || ""],
-                  ["O'rtacha yosh", `${groupDetails?.averageAge ?? 0} yosh`],
-                  ["Sig'imi", `${groupDetails?.room_capacity ?? 0} ta`],
-                  ["Hozirgi o'quvchilar", `${groupDetails?.student_count ?? 0} ta`],
-                  ["Kurs davomiyligi", `${groupDetails?.course?.duration_month ?? 0} oy`],
-                  ["Darslar soni (Jami)", `${schedules.reduce((s,m) => s + m.days.length, 0)} ta`],
-                ].map(([k,v]) => (
+                  [t.direction, groupDetails?.course?.name || ""],
+                  [t.avgAge, `${groupDetails?.averageAge ?? 0} ${lang === 'ru' ? 'лет' : 'yosh'}`],
+                  [t.capacity, `${groupDetails?.room_capacity ?? 0} ${lang === 'ru' ? 'чел.' : 'ta'}`],
+                  [t.currentStudents, `${groupDetails?.student_count ?? 0} ${lang === 'ru' ? 'чел.' : 'ta'}`],
+                  [t.courseDuration, `${groupDetails?.course?.duration_month ?? 0} ${t.month}`],
+                  [t.totalLessons, `${schedules.reduce((s,m) => s + m.days.length, 0)} ${lang === 'ru' ? 'шт.' : 'ta'}`],
+                ].map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between py-1.5 border-b border-slate-50">
                     <span className="text-sm text-slate-500">{k}</span>
                     <strong className="text-sm text-slate-900">{v}</strong>
@@ -249,7 +237,7 @@ export default function GroupDetail() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-            <h2 className="text-base font-bold text-slate-900 mb-4">Dars jadvali</h2>
+            <h2 className="text-base font-bold text-slate-900 mb-4">{t.lessonSchedule}</h2>
             <div className="flex flex-col gap-3 mb-4">
               {(showAllSchedules ? groupDetails?.teachers || [] : (groupDetails?.teachers || []).slice(0, 2)).map((teacher, i) => (
                 <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
@@ -264,7 +252,7 @@ export default function GroupDetail() {
               ))}
               {(groupDetails?.teachers?.length || 0) > 2 && (
                 <button onClick={() => setShowAllSchedules(p => !p)} className="text-sm text-[#6c35de] font-medium hover:underline self-start">
-                  {showAllSchedules ? "Yashirish" : `Yana ko'rsatish (${groupDetails.teachers.length - 2})`}
+                  {showAllSchedules ? t.hide : `${t.showMore} (${groupDetails.teachers.length - 2})`}
                 </button>
               )}
             </div>
@@ -279,7 +267,7 @@ export default function GroupDetail() {
               <div key={idx} className="mb-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-sm font-semibold text-slate-700">{sm.label}</span>
-                  {sm.isCurrent && <span className="px-2 py-0.5 bg-[#6c35de]/10 text-[#6c35de] rounded-full text-xs font-medium">Joriy oy</span>}
+                  {sm.isCurrent && <span className="px-2 py-0.5 bg-[#6c35de]/10 text-[#6c35de] rounded-full text-xs font-medium">{t.currentMonth}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {sm.days.map(d => (
@@ -294,7 +282,7 @@ export default function GroupDetail() {
             ))}
             {schedules.length > 1 && (
               <button onClick={() => setShowAllMonths(p => !p)} className="text-sm text-[#6c35de] font-medium hover:underline">
-                {showAllMonths ? "Yopish" : "Barchasini ko'rish"}
+                {showAllMonths ? t.hide : t.showAll}
               </button>
             )}
           </div>
@@ -302,28 +290,28 @@ export default function GroupDetail() {
       )}
 
       {/* Tab 1: Guruh darsliklari */}
-      {activeTab === "Guruh darsliklari" && (
+      {activeTab === TABS_LABELS[1] && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h2 className="text-lg font-bold text-slate-900">Guruh darsliklari</h2>
-              <div className="flex gap-1">
-                {["Uyga vazifa","Videolar","Imtihonlar","Jurnal"].map(t => (
-                  <button key={t} onClick={() => setActiveSubTab(t)} className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${activeSubTab === t ? 'bg-[#6c35de] text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{t}</button>
+              <h2 className="text-lg font-bold text-slate-900">{t.groupLessons}</h2>
+              <div className="flex gap-1 overflow-x-auto">
+                {SUBTABS.map(tab => (
+                  <button key={tab} onClick={() => setActiveSubTab(tab)} className={`flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${activeSubTab === tab ? 'bg-[#6c35de] text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{tab}</button>
                 ))}
               </div>
             </div>
-            <button onClick={() => { if (activeSubTab === "Videolar") setIsVideoModalOpen(true); else navigate(`/dashboard/groups/${id}/homework/create`); }} className="px-4 py-2 bg-[#6c35de] text-white text-sm font-semibold rounded-lg hover:bg-[#5a2cc0] transition-colors">Qo'shish</button>
+            <button onClick={() => { if (activeSubTab === t.videos) setIsVideoModalOpen(true); else navigate(`/dashboard/groups/${id}/homework/create`); }} className="px-4 py-2 bg-[#6c35de] text-white text-sm font-semibold rounded-lg hover:bg-[#5a2cc0] transition-colors">{t.add}</button>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-auto">
-            {activeSubTab === "Uyga vazifa" && <UygaVazifa />}
-            {activeSubTab === "Videolar" && <Videolar refreshTrigger={videoRefresh} />}
+            {activeSubTab === t.homework && <UygaVazifa />}
+            {activeSubTab === t.videos && <Videolar refreshTrigger={videoRefresh} />}
           </div>
         </div>
       )}
 
       {/* Tab 2: Akademik davomati */}
-      {activeTab === "Akademik davomati" && (
+      {activeTab === TABS_LABELS[2] && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center gap-3 mb-5">
             <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
@@ -347,25 +335,25 @@ export default function GroupDetail() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={handleModalClose}>
           <div className="bg-white rounded-2xl w-[640px] max-w-[95vw] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900">Video qo'shish</h2>
+              <h2 className="text-base font-bold text-slate-900">{t.addVideo}</h2>
               <button onClick={handleModalClose} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg"><CloseRoundedIcon fontSize="small" /></button>
             </div>
             <div className="px-6 py-5 flex flex-col gap-4">
               <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-3 p-8 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-[#6c35de] hover:bg-[#6c35de]/5 transition-all">
                 <CloudUploadOutlinedIcon className="text-slate-400" style={{ fontSize: 40 }} />
-                <p className="text-sm text-slate-600 text-center">Videofaylni yuklash uchun bosing yoki faylni shu yerga olib keling</p>
-                <p className="text-xs text-slate-400">.mp4, .webm, .mpeg, .avi, .mkv, .m4v, .mov</p>
+                <p className="text-sm text-slate-600 text-center">{t.uploadVideo}</p>
+                <p className="text-xs text-slate-400">{t.uploadFormats}</p>
               </div>
               {selectedVideoFile && (
                 <div className="bg-slate-50 rounded-xl p-4">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b border-slate-200"><th className="text-left py-2 text-slate-500 font-semibold text-xs">File name</th><th className="text-left py-2 text-slate-500 font-semibold text-xs">Dars</th><th className="text-left py-2 text-slate-500 font-semibold text-xs">Video nomi</th><th></th></tr></thead>
+                    <thead><tr className="border-b border-slate-200"><th className="text-left py-2 text-slate-500 font-semibold text-xs">File name</th><th className="text-left py-2 text-slate-500 font-semibold text-xs">{t.lessonName}</th><th className="text-left py-2 text-slate-500 font-semibold text-xs">{t.videoName}</th><th></th></tr></thead>
                     <tbody>
                       <tr>
                         <td className="py-2 text-slate-700 pr-3">{selectedVideoFile.name}</td>
                         <td className="py-2 pr-3">
                           <select value={selectedLessonId} onChange={e => setSelectedLessonId(e.target.value)} className="h-9 px-2 border border-slate-200 rounded-lg text-sm bg-white w-36 focus:border-[#6c35de] outline-none">
-                            <option value="" disabled>Tanlang</option>
+                            <option value="" disabled>{t.selectLesson}</option>
                             {groupLessons.map(l => <option key={l.id} value={l.id}>{l.topic || l.title || l.name}</option>)}
                           </select>
                         </td>
@@ -379,10 +367,10 @@ export default function GroupDetail() {
               <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept=".mp4,.webm,.mpeg,.avi,.mkv,.m4v,.ogm,.mov" onChange={handleFileSelect} />
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-              <button onClick={handleModalClose} disabled={isUploadingVideo} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50">Bekor qilish</button>
+              <button onClick={handleModalClose} disabled={isUploadingVideo} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50">{t.cancel}</button>
               {selectedVideoFile && (
                 <button onClick={handleVideoUpload} disabled={isUploadingVideo} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c35de] rounded-lg hover:bg-[#5a2cc0] transition-colors disabled:opacity-50">
-                  {isUploadingVideo ? "Yuklanmoqda..." : "Fayllarni yuklash"}
+                  {isUploadingVideo ? t.uploading : t.uploadFiles}
                 </button>
               )}
             </div>
@@ -396,49 +384,27 @@ export default function GroupDetail() {
           <div className="bg-white rounded-2xl w-[540px] max-w-full shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Talaba qo'shish</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Guruhga talabalarni tanlang</p>
+                <h2 className="text-base font-bold text-slate-900">{t.addStudentToGroup}</h2>
+                <p className="text-sm text-slate-500 mt-0.5">{t.addStudentToGroupSubtitle}</p>
               </div>
-              <button onClick={() => setIsAddStudentModalOpen(false)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg">
-                <CloseRoundedIcon fontSize="small" />
-              </button>
+              <button onClick={() => setIsAddStudentModalOpen(false)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg"><CloseRoundedIcon fontSize="small" /></button>
             </div>
             <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
               {allStudents.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-8">Talabalar topilmadi</p>
+                <p className="text-sm text-slate-400 text-center py-8">{t.noData}</p>
               ) : (
                 <div className="flex flex-col gap-2">
                   {allStudents.map(student => {
                     const isInGroup = (groupDetails?.students || []).some(s => s.id === student.id);
                     const isSelected = selectedStudentIds.includes(student.id);
                     return (
-                      <label
-                        key={student.id}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                          isInGroup ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' :
-                          isSelected ? 'bg-[#6c35de]/10 border-[#6c35de]' : 'bg-white border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          disabled={isInGroup}
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedStudentIds(prev => [...prev, student.id]);
-                            } else {
-                              setSelectedStudentIds(prev => prev.filter(sid => sid !== student.id));
-                            }
-                          }}
-                          className="w-4 h-4 accent-[#6c35de]"
-                        />
+                      <label key={student.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isInGroup ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' : isSelected ? 'bg-[#6c35de]/10 border-[#6c35de]' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                        <input type="checkbox" disabled={isInGroup} checked={isSelected} onChange={(e) => { if (e.target.checked) setSelectedStudentIds(prev => [...prev, student.id]); else setSelectedStudentIds(prev => prev.filter(sid => sid !== student.id)); }} className="w-4 h-4 accent-[#6c35de]" />
                         <div className="flex-1">
                           <p className="text-sm font-semibold text-slate-800">{student.full_name || student.name}</p>
                           <p className="text-xs text-slate-400">{student.phone}</p>
                         </div>
-                        {isInGroup && (
-                          <span className="text-xs text-slate-400 font-medium">Guruhda</span>
-                        )}
+                        {isInGroup && <span className="text-xs text-slate-400 font-medium">{t.alreadyInGroup}</span>}
                       </label>
                     );
                   })}
@@ -446,19 +412,9 @@ export default function GroupDetail() {
               )}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
-              <button
-                onClick={() => { setIsAddStudentModalOpen(false); setSelectedStudentIds([]); }}
-                disabled={isAddingStudent}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
-              >
-                Bekor qilish
-              </button>
-              <button
-                onClick={handleAddStudents}
-                disabled={isAddingStudent || selectedStudentIds.length === 0}
-                className="px-4 py-2 text-sm font-semibold text-white bg-[#6c35de] rounded-lg hover:bg-[#5a2cc0] transition-colors disabled:opacity-50"
-              >
-                {isAddingStudent ? "Qo'shilmoqda..." : `Qo'shish (${selectedStudentIds.length})`}
+              <button onClick={() => { setIsAddStudentModalOpen(false); setSelectedStudentIds([]); }} disabled={isAddingStudent} className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50">{t.cancel}</button>
+              <button onClick={handleAddStudents} disabled={isAddingStudent || selectedStudentIds.length === 0} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c35de] rounded-lg hover:bg-[#5a2cc0] transition-colors disabled:opacity-50">
+                {isAddingStudent ? t.studentAdding : `${t.add} (${selectedStudentIds.length})`}
               </button>
             </div>
           </div>

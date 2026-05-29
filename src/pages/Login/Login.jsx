@@ -23,9 +23,30 @@ export default function Login() {
         const auth = res.data?.accessToken;
         if (auth) {
           sessionStorage.setItem("accessToken", auth);
-          // Foydalanuvchi ma'lumotlarini saqlash
-          const user = res.data?.user || res.data?.admin || res.data?.data || {};
-          if (user) sessionStorage.setItem("currentUser", JSON.stringify(user));
+
+          // API faqat accessToken qaytaradi — qo'shimcha ma'lumotlarni
+          // response dan yoki token payload dan olamiz
+          const user = res.data?.user || res.data?.admin || res.data?.data || null;
+          if (user && Object.keys(user).length > 0) {
+            sessionStorage.setItem("currentUser", JSON.stringify(user));
+          } else {
+            // Token payload (JWT) dan decode qilish
+            try {
+              const payload = JSON.parse(atob(auth.split('.')[1]));
+              const userData = {
+                full_name: payload.full_name || payload.name || payload.username || "",
+                first_name: payload.first_name || "",
+                last_name: payload.last_name || "",
+                phone: payload.phone || input.phone || "",
+                role: payload.role || payload.roles?.[0] || "ADMIN",
+              };
+              sessionStorage.setItem("currentUser", JSON.stringify(userData));
+            } catch {
+              // decode ishlamasa — phone ni saqlaymiz
+              sessionStorage.setItem("currentUser", JSON.stringify({ phone: input.phone, role: "ADMIN" }));
+            }
+          }
+
           setSuccess(true);
           setShowToast(true);
           setTimeout(() => navigate('/dashboard', { replace: true }), 1500);

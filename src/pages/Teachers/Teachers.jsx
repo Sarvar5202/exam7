@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from '../../api/api';
 import { toast } from '../../components/UI/Toast/Toast';
+import { useApp } from '../../context/AppContext';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -17,6 +18,7 @@ const actionBtn = "w-8 h-8 flex items-center justify-center text-slate-500 hover
 
 export default function Teachers() {
   const navigate = useNavigate();
+  const { t } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [teacherData, setTeacherData] = useState([]);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -48,10 +50,10 @@ export default function Teachers() {
         else fetchTeachers();
       }
       setIsModalOpen(false); setSelectedTeacher(null);
-      toast.success(teacherToEdit?.id ? "O'qituvchi yangilandi" : "O'qituvchi qo'shildi");
+      toast.success(teacherToEdit?.id ? t.teacherUpdated : t.teacherAdded);
     }).catch(err => {
       if (err.response?.status === 304) { setIsModalOpen(false); setSelectedTeacher(null); return; }
-      toast.error("Xatolik yuz berdi");
+      toast.error(t.errorGeneral);
     }).finally(() => setIsLoading(false));
   };
 
@@ -60,11 +62,11 @@ export default function Teachers() {
     api.delete(`/teachers/${tid}`)
       .then(res => {
         if (res.status === 200 || res.status === 204) {
-          setTeacherData(prev => prev.filter(t => t.id !== tid));
-          toast.success("O'qituvchi o'chirildi");
+          setTeacherData(prev => prev.filter(t2 => t2.id !== tid));
+          toast.success(t.teacherDeleted);
         }
       })
-      .catch(() => toast.error("O'chirishda xatolik yuz berdi"))
+      .catch(() => toast.error(t.errorGeneral))
       .finally(() => setIsLoading(false));
   };
 
@@ -73,14 +75,12 @@ export default function Teachers() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-bold text-[#1a1a2e] m-0">O'qituvchilar</h1>
+          <h1 className="text-[28px] font-bold text-[#1a1a2e] m-0">{t.teachersTitle}</h1>
           <button onClick={() => { setSelectedTeacher(null); setIsModalOpen(true); }} className="flex items-center gap-1 bg-[#6c35de] text-white rounded-[10px] px-5 py-[10px] text-sm font-semibold hover:bg-[#5a2cc0] transition-colors">
-            <AddRoundedIcon fontSize="small" /><span>O'qituvchi qo'shish</span>
+            <AddRoundedIcon fontSize="small" /><span>{t.addTeacher}</span>
           </button>
         </div>
-        <p className="text-sm text-[#8a8a9a] leading-relaxed m-0">
-          Ushbu sahifada siz o'qituvchilar ro'yxatini va ularning ma'lumotlarini topasiz.
-        </p>
+        <p className="text-sm text-[#8a8a9a] leading-relaxed m-0">{t.teachersSubtitle}</p>
       </div>
 
       {/* Table card */}
@@ -89,13 +89,13 @@ export default function Teachers() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <FilterListRoundedIcon fontSize="small" />Filters
+              <FilterListRoundedIcon fontSize="small" />{t.filter}
             </button>
             <button onClick={() => navigate('/dashboard/teachers/archive')} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <ArchiveOutlinedIcon fontSize="small" />Arxiv
+              <ArchiveOutlinedIcon fontSize="small" />{t.archive}
             </button>
           </div>
-          <input type="text" placeholder="Search" className="h-9 px-3 border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:border-[#6c35de] outline-none w-full sm:w-[220px]" />
+          <input type="text" placeholder={t.search} className="h-9 px-3 border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:border-[#6c35de] outline-none w-full sm:w-[220px]" />
         </div>
 
         {/* Table */}
@@ -111,13 +111,13 @@ export default function Teachers() {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="text-left px-5 py-3 font-semibold text-slate-500 w-10"><input type="checkbox" /></th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Nomi ↓</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Guruh</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Telefon</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Email</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Manzil</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Sana</th>
-                <th className="text-right px-5 py-3 font-semibold text-slate-500">Amallar</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.fullName} ↓</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.group}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.phone}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.email}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.address}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.date}</th>
+                <th className="text-right px-5 py-3 font-semibold text-slate-500">{t.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -197,13 +197,13 @@ export default function Teachers() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-slate-100">
-          <button className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">← Previous</button>
+          <button className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t.previous}</button>
           <div className="flex items-center gap-1">
             {[1,2,3,'...',8,9,10].map((p, i) => p === '...' ? <span key={i} className="px-2 text-slate-400">...</span> :
               <button key={i} className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-lg border transition-colors ${p === 1 ? 'bg-[#6c35de] text-white border-[#6c35de]' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{p}</button>
             )}
           </div>
-          <button className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Next →</button>
+          <button className="px-3 py-1.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t.next}</button>
         </div>
       </div>
 
@@ -212,8 +212,8 @@ export default function Teachers() {
         isOpen={deleteConfirm.isOpen}
         onClose={() => setDeleteConfirm({ isOpen: false, teacherId: null })}
         onConfirm={() => { const id = deleteConfirm.teacherId; setDeleteConfirm({ isOpen: false, teacherId: null }); if (id) actualDeleteTeacher(id); }}
-        title="O'qituvchini o'chirish"
-        message="Rostdan ham o'chirishni hohlaysizmi?"
+        title={t.teacherDeleteConfirm}
+        message={t.teacherDeleteMsg}
       />
     </div>
   );

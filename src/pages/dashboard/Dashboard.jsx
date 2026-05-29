@@ -6,57 +6,53 @@ import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
 import AcUnitRoundedIcon from '@mui/icons-material/AcUnitRounded';
 import ArchiveRoundedIcon from '@mui/icons-material/ArchiveRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
-
-const stats = [
-  { label: "Faol talabalar", value: "52", icon: <SchoolRoundedIcon /> },
-  { label: "Guruhlar", value: "23", icon: <GroupRoundedIcon /> },
-  { label: "Joriy oy to'lovlar", value: "0", icon: <CreditCardRoundedIcon /> },
-  { label: "Qarzdorlar", value: "104", icon: <WarningRoundedIcon /> },
-  { label: "Muzlatilganlar", value: "0", icon: <AcUnitRoundedIcon /> },
-  { label: "Arxivdagilar", value: "23", icon: <ArchiveRoundedIcon /> },
-];
-
-const accordionItems = [
-  "Joriy oy uchun to'lovlar",
-  "Yillik Foyda",
-  "Dars jadvali",
-];
+import { useApp } from "../../context/AppContext";
 
 export default function Dashboard() {
   const [openAccordion, setOpenAccordion] = useState(0);
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("");
+  const { t, lang } = useApp();
+
+  const stats = [
+    { label: t.activeStudents,  value: "52",  icon: <SchoolRoundedIcon /> },
+    { label: t.groupsCount,     value: "23",  icon: <GroupRoundedIcon /> },
+    { label: t.monthPayments,   value: "0",   icon: <CreditCardRoundedIcon /> },
+    { label: t.debtors,         value: "104", icon: <WarningRoundedIcon /> },
+    { label: t.frozen,          value: "0",   icon: <AcUnitRoundedIcon /> },
+    { label: t.archived,        value: "23",  icon: <ArchiveRoundedIcon /> },
+  ];
+  const accordionItems = [t.monthlyPayments, t.annualProfit, t.schedule];
 
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("currentUser");
       if (raw) {
         const user = JSON.parse(raw);
-        // Turli field nomlarni qo'llab-quvvatlash
         const name =
-          user?.first_name && user?.last_name
+          (user?.first_name && user?.last_name)
             ? `${user.first_name} ${user.last_name}`
-            : user?.full_name || user?.name || user?.phone || "";
+            : user?.full_name || user?.name || user?.username || user?.phone || "";
         const role =
           user?.role === "SUPERADMIN" ? "Super Admin" :
           user?.role === "ADMIN"      ? "Admin"       :
-          user?.role === "TEACHER"    ? "O'qituvchi"  :
+          user?.role === "TEACHER"    ? (lang === 'ru' ? "Учитель" : "O'qituvchi") :
           user?.role || "";
         setUserName(name);
         setUserRole(role);
       }
     } catch { /* silent */ }
-  }, []);
+  }, [lang]);
 
   return (
     <div className="pt-6 flex flex-col gap-6 flex-1 min-h-0 overflow-auto pb-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          Salom, <span className="text-[#6c35de]">{userName || "Foydalanuvchi"}</span>!
+          {t.dashboardGreeting}, <span className="text-[#6c35de]">{userName || "..."}</span>!
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           {userRole && <span className="font-semibold text-slate-700">{userRole} • </span>}
-          Najot CRM platformasiga xush kelibsiz!
+          {t.dashboardWelcome}
         </p>
       </div>
 

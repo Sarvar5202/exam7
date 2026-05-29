@@ -1,6 +1,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from '../../api/api';
+import { useApp } from '../../context/AppContext';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -16,6 +17,7 @@ const actionBtn = "w-8 h-8 flex items-center justify-center text-slate-500 hover
 
 export default function Students() {
   const navigate = useNavigate();
+  const { t } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [studentData, setStudentData] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -60,25 +62,25 @@ export default function Students() {
     <div className="pt-6 flex flex-col gap-6 flex-1 min-h-0 overflow-hidden">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-bold text-[#1a1a2e] m-0">Talabalar</h1>
+          <h1 className="text-[28px] font-bold text-[#1a1a2e] m-0">{t.studentsTitle}</h1>
           <button onClick={() => { setSelectedStudent(null); setIsModalOpen(true); }} className="flex items-center gap-1 bg-[#6c35de] text-white rounded-[10px] px-5 py-[10px] text-sm font-semibold hover:bg-[#5a2cc0] transition-colors">
-            <AddRoundedIcon fontSize="small" /><span>Talaba qo'shish</span>
+            <AddRoundedIcon fontSize="small" /><span>{t.addStudent}</span>
           </button>
         </div>
-        <p className="text-sm text-[#8a8a9a] leading-relaxed m-0">Ushbu sahifada talabalar ro'yxati va ularning ma'lumotlari keltirilgan.</p>
+        <p className="text-sm text-[#8a8a9a] leading-relaxed m-0">{t.studentsSubtitle}</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm flex flex-col flex-1 min-h-0">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <FilterListRoundedIcon fontSize="small" />Filters
+              <FilterListRoundedIcon fontSize="small" />{t.filter}
             </button>
             <button onClick={() => navigate('/dashboard/students/archive')} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <ArchiveOutlinedIcon fontSize="small" />Arxiv
+              <ArchiveOutlinedIcon fontSize="small" />{t.archive}
             </button>
           </div>
-          <input type="text" placeholder="Search" className="h-9 px-3 border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:border-[#6c35de] outline-none w-[220px]" />
+          <input type="text" placeholder={t.search} className="h-9 px-3 border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:border-[#6c35de] outline-none w-[220px]" />
         </div>
 
         <div className="flex-1 overflow-auto relative" style={{ opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.2s', minHeight: 150 }}>
@@ -91,14 +93,14 @@ export default function Students() {
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="text-left px-5 py-3 font-semibold text-slate-500 w-10"><input type="checkbox" /></th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">FIO ↓</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Guruh</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Telefon</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Email</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Tug'ilgan sana</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Manzil</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Sana</th>
-                <th className="text-right px-5 py-3 font-semibold text-slate-500">Amallar</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.fullName} ↓</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.group}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.phone}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.email}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.birthDate}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.address}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.date}</th>
+                <th className="text-right px-5 py-3 font-semibold text-slate-500">{t.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -156,7 +158,7 @@ export default function Students() {
       </div>
 
       <StudentModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setSelectedStudent(null); }} onSave={() => fetchStudents(page)} studentToEdit={selectedStudent} />
-      <ConfirmDialog isOpen={deleteConfirm.isOpen} onClose={() => setDeleteConfirm({ isOpen: false, studentId: null })} onConfirm={() => { const id = deleteConfirm.studentId; setDeleteConfirm({ isOpen: false, studentId: null }); if (id) actualDeleteStudent(id); }} title="Talabani o'chirish" message="Rostdan ham o'chirishni hohlaysizmi?" />
+      <ConfirmDialog isOpen={deleteConfirm.isOpen} onClose={() => setDeleteConfirm({ isOpen: false, studentId: null })} onConfirm={() => { const id = deleteConfirm.studentId; setDeleteConfirm({ isOpen: false, studentId: null }); if (id) actualDeleteStudent(id); }} title={t.studentDeleteConfirm} message={t.studentDeleteMsg} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../../api/api";
+import { useApp } from "../../../context/AppContext";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -47,6 +48,21 @@ export default function StudentHomeworkDetail() {
   const { id, homeworkId, resultId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useApp();
+
+  // Status labellarini tarjimadan olamiz
+  const STATUS_LABELS = {
+    PENDING:  t.pending,
+    ACCEPTED: t.accepted,
+    REJECTED: t.rejected,
+    CHECKED:  t.notDone,
+  };
+  const TAB_TO_STATUS = {
+    [t.pending]:  "PENDING",
+    [t.rejected]: "REJECTED",
+    [t.accepted]: "ACCEPTED",
+    [t.notDone]:  "CHECKED",
+  };
 
   const tabLabel  = decodeURIComponent(searchParams.get("tab") || "Kutayotganlar");
   const dateParam = decodeURIComponent(searchParams.get("date") || "");
@@ -76,7 +92,7 @@ export default function StudentHomeworkDetail() {
         if (data?.title) setCheckComment(data.title);
       })
       .catch(() => {
-        setError("Ma'lumot yuklanmadi. Sahifani yangilang.");
+        setError(t.loadError);
       })
       .finally(() => setLoading(false));
   }, [id, homeworkId, resultId]);
@@ -105,7 +121,7 @@ export default function StudentHomeworkDetail() {
         err?.response?.data?.message ??
         err?.response?.data?.error ??
         (typeof err?.response?.data === "string" ? err.response.data : null) ??
-        `Server xatosi: ${err?.response?.status ?? "noma'lum"}`;
+        `${t.serverError}: ${err?.response?.status ?? t.noData}`;
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -149,7 +165,7 @@ export default function StudentHomeworkDetail() {
           {tabLabel}
         </button>
         <span className="text-slate-300">›</span>
-        <span className="text-slate-500">Uyga vazifa tekshirish</span>
+        <span className="text-slate-500">{t.checkHomework}</span>
       </div>
 
       {loading ? (
@@ -163,9 +179,9 @@ export default function StudentHomeworkDetail() {
           {/* Homework description */}
           {displayHomeworkDesc && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h3 className="text-sm font-bold text-slate-900 mb-3">Uy vazifasi</h3>
+              <h3 className="text-sm font-bold text-slate-900 mb-3">{t.homeworkDesc}</h3>
               <div className="bg-slate-50 rounded-xl p-4">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Izoh:</span>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t.comment}:</span>
                 <p className="text-sm text-slate-700 mt-1">{displayHomeworkDesc}</p>
               </div>
             </div>
@@ -186,16 +202,16 @@ export default function StudentHomeworkDetail() {
 
             <div className="flex flex-wrap gap-6">
               <div>
-                <p className="text-xs text-slate-400 mb-1">Topshirilgan vaqt</p>
+                <p className="text-xs text-slate-400 mb-1">{t.submittedTime}</p>
                 <p className="text-sm font-semibold text-slate-800">{formatDateTime(displaySubmittedAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400 mb-1">Fayllar soni</p>
+                <p className="text-xs text-slate-400 mb-1">{t.filesCount}</p>
                 <p className="text-sm font-semibold text-slate-800">{displayFiles.length}</p>
               </div>
               {detail?.grade != null && (
                 <div>
-                  <p className="text-xs text-slate-400 mb-1">Ball</p>
+                <p className="text-xs text-slate-400 mb-1">{t.ball}</p>
                   <p
                     className="text-sm font-bold"
                     style={{ color: Number(detail.grade) >= 60 ? "#22c55e" : "#ef4444" }}
@@ -210,8 +226,7 @@ export default function StudentHomeworkDetail() {
             {displayFiles.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-slate-500 mb-2">
-                  Yuklangan fayllar:{" "}
-                  <strong className="text-slate-900">{displayFiles.length}</strong>
+                  {t.uploadedFiles} <strong className="text-slate-900">{displayFiles.length}</strong>
                 </p>
                 <div className="flex flex-wrap gap-3">
                   {displayFiles.map((file, idx) =>

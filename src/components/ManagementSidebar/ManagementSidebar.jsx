@@ -1,26 +1,27 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { useApp } from "../../context/AppContext";
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import MeetingRoomRoundedIcon from '@mui/icons-material/MeetingRoomRounded';
 import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
 import MonetizationOnRoundedIcon from '@mui/icons-material/MonetizationOnRounded';
 import SendRoundedIcon from '@mui/icons-material/SendRounded';
 
-const subMenuItems = [
-  { label: "Kurslar", slug: "courses", icon: <MenuBookRoundedIcon /> },
-  { label: "Xonalar", slug: "rooms", icon: <MeetingRoomRoundedIcon /> },
-  { label: "Xodimlar", slug: "staff", icon: <BadgeRoundedIcon /> },
-  { label: "Coin", slug: "coin", icon: <MonetizationOnRoundedIcon /> },
-  { label: "Xabar Yuborish", slug: "send-message", icon: <SendRoundedIcon /> },
-];
-
 export default function ManagementSidebar({ isOpen, isCollapsed, onClose }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { t } = useApp();
   const currentSlug = pathname.split("/").pop() || "courses";
 
+  const subMenuItems = [
+    { label: t.courses,     slug: "courses",      icon: <MenuBookRoundedIcon /> },
+    { label: t.rooms,       slug: "rooms",        icon: <MeetingRoomRoundedIcon /> },
+    { label: t.staff,       slug: "staff",        icon: <BadgeRoundedIcon /> },
+    { label: t.coin,        slug: "coin",         icon: <MonetizationOnRoundedIcon /> },
+    { label: t.sendMessage, slug: "send-message", icon: <SendRoundedIcon /> },
+  ];
+
   return (
-    <div
-      className={`
+    <div className={`
         fixed top-0 bottom-0 bg-white border-r border-slate-100 z-[90]
         flex flex-col transition-all duration-300 shadow-xl
         ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}

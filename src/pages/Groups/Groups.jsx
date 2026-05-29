@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from '../../api/api';
 import { toast } from '../../components/UI/Toast/Toast';
+import { useApp } from '../../context/AppContext';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
@@ -22,6 +23,7 @@ import ConfirmDialog from "../../components/UI/ConfirmDialog/ConfirmDialog";
 
 export default function Groups() {
   const navigate = useNavigate();
+  const { t } = useApp();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editGroupData, setEditGroupData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,30 +55,29 @@ export default function Groups() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-[28px] font-bold text-[#1a1a2e] m-0">Guruhlar</h1>
+          <h1 className="text-[28px] font-bold text-[#1a1a2e] m-0">{t.groupsTitle}</h1>
           <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1 bg-[#6c35de] text-white rounded-[10px] px-5 py-[10px] text-sm font-semibold hover:bg-[#5a2cc0] transition-colors">
-            <AddRoundedIcon fontSize="small" /><span>Guruh qo'shish</span>
+            <AddRoundedIcon fontSize="small" /><span>{t.addGroup}</span>
           </button>
         </div>
-        <p className="text-sm text-[#8a8a9a]">Guruhlar ro'yxati va ularning ma'lumotlari.</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2">
         <button className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-[#6c35de] text-white rounded-lg">
-          <GroupsRoundedIcon fontSize="small" />Guruhlar
+          <GroupsRoundedIcon fontSize="small" />{t.groups}
         </button>
         <button onClick={() => navigate('/dashboard/groups/archive')} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-          <ArchiveOutlinedIcon fontSize="small" />Arxiv
+          <ArchiveOutlinedIcon fontSize="small" />{t.archive}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { icon: <GroupsRoundedIcon />, label: "Jami guruhlar", value: groups.length, color: "bg-blue-50 text-blue-600" },
-          { icon: <PersonRoundedIcon />, label: "O'qituvchilar", value: uniqueTeachers.size, color: "bg-orange-50 text-orange-600" },
-          { icon: <SchoolRoundedIcon />, label: "O'quvchilar", value: uniqueStudents.size, color: "bg-green-50 text-green-600" },
+          { icon: <GroupsRoundedIcon />, label: t.groupsTitle,   value: groups.length,        color: "bg-blue-50 text-blue-600" },
+          { icon: <PersonRoundedIcon />, label: t.teachersTitle, value: uniqueTeachers.size,  color: "bg-orange-50 text-orange-600" },
+          { icon: <SchoolRoundedIcon />, label: t.studentsTitle, value: uniqueStudents.size,  color: "bg-green-50 text-green-600" },
         ].map((s, i) => (
           <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-3">
@@ -96,14 +97,14 @@ export default function Groups() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Status</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Guruh nomi</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Kurs</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Davomiyligi</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Dars vaqti</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Xona</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">O'qituvchi</th>
-                <th className="text-left px-5 py-3 font-semibold text-slate-500">Talabalar</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.status}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.groupName}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.course}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.duration}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.lessonTime}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.room}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.teacher}</th>
+                <th className="text-left px-5 py-3 font-semibold text-slate-500">{t.students2}</th>
                 <th className="text-right px-5 py-3">
                   <RefreshRoundedIcon className="text-slate-400 cursor-pointer hover:text-slate-700 transition-colors" fontSize="small" onClick={fetchGroups} />
                 </th>
@@ -124,12 +125,12 @@ export default function Groups() {
                             g.id === group.id ? { ...g, status: newStatus } : g
                           ));
                           api.patch(`/groups/${group.id}`, { status: newStatus })
-                            .then(() => toast.success(newStatus ? "Guruh faollashtirildi" : "Guruh nofaol qilindi"))
+                            .then(() => toast.success(newStatus ? t.groupActivated : t.groupDeactivated))
                             .catch(() => {
                               setGroups(prev => prev.map(g =>
                                 g.id === group.id ? { ...g, status: !newStatus } : g
                               ));
-                              toast.error("Xatolik yuz berdi");
+                              toast.error(t.errorGeneral);
                             });
                         }}
                         sx={{
@@ -151,13 +152,13 @@ export default function Groups() {
                         }}
                       />
                       <span className={`text-xs font-semibold ${isActive(group.status) ? 'text-green-600' : 'text-red-600'}`}>
-                        {isActive(group.status) ? 'FAOL' : 'NOFAOL'}
+                        {isActive(group.status) ? t.active : t.inactive}
                       </span>
                     </div>
                   </td>
                   <td className="px-5 py-3 font-semibold text-slate-800">{group.name}</td>
                   <td className="px-5 py-3"><span className="px-2 py-1 bg-violet-100 text-violet-700 rounded-md text-xs font-medium">{group.course?.name}</span></td>
-                  <td className="px-5 py-3 text-slate-600">{group.course?.duration_month} oy</td>
+                  <td className="px-5 py-3 text-slate-600">{group.course?.duration_month} {t.month}</td>
                   <td className="px-5 py-3">
                     <div><span className="text-slate-800 font-medium">{group.start_time}</span><br /><span className="text-xs text-slate-400">{group.week_day?.map(d => d.toLowerCase().slice(0,3)).join(', ')}</span></div>
                   </td>

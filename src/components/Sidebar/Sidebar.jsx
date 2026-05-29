@@ -158,10 +158,10 @@ export default function Sidebar({ isCollapsed, toggleSidebar, isSubSidebarOpen, 
           <img src="/alarm.png" alt="" style={{ height: 22, width: 22, opacity: 0.8 }} />
           {!isCollapsed && (
             <div>
-              <p style={{ fontWeight: 600, fontSize: '0.78rem', color: textMain, margin: 0 }}>Obuna</p>
+              <p style={{ fontWeight: 600, fontSize: '0.78rem', color: textMain, margin: 0 }}>{t.subscription}</p>
               <p style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 500, margin: 0 }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#ef4444', marginRight: 4 }} />
-                Obunangiz tugagan
+                {t.subscriptionExpired}
               </p>
             </div>
           )}
@@ -178,7 +178,7 @@ export default function Sidebar({ isCollapsed, toggleSidebar, isSubSidebarOpen, 
             border: 'none',
             cursor: 'pointer',
           }}>
-            Obunani yangilash
+            {t.subscriptionRenew}
           </button>
         )}
       </div>
@@ -194,56 +194,35 @@ export default function Sidebar({ isCollapsed, toggleSidebar, isSubSidebarOpen, 
         justifyContent: isCollapsed ? 'center' : 'space-between',
         marginBottom: 8,
       }}>
-        {/* Dark toggle */}
         <button
           onClick={toggleDark}
-          title={dark ? 'Yorug\' rejim' : 'Qorong\'u rejim'}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
+            display: 'flex', alignItems: 'center', gap: 6,
             padding: isCollapsed ? '8px 0' : '7px 12px',
             width: isCollapsed ? '100%' : 'auto',
-            justifyContent: 'center',
-            borderRadius: 8,
+            justifyContent: 'center', borderRadius: 8,
             background: dark ? 'rgba(255,255,255,0.05)' : '#f1f3f9',
             color: dark ? '#a0a0c0' : '#64748b',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            border: `1px solid ${border}`,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            flex: isCollapsed ? 'none' : 1,
+            fontSize: '0.78rem', fontWeight: 600,
+            border: `1px solid ${border}`, cursor: 'pointer',
+            transition: 'all 0.2s', flex: isCollapsed ? 'none' : 1,
           }}
         >
-          {dark
-            ? <LightModeRoundedIcon style={{ fontSize: 16 }} />
-            : <DarkModeRoundedIcon style={{ fontSize: 16 }} />
-          }
-          {!isCollapsed && <span>{dark ? "Yorug'" : "Qorong'u"}</span>}
+          {dark ? <LightModeRoundedIcon style={{ fontSize: 16 }} /> : <DarkModeRoundedIcon style={{ fontSize: 16 }} />}
+          {!isCollapsed && <span>{dark ? t.lightMode : t.darkMode}</span>}
         </button>
-
-        {/* Til toggle */}
         <button
           onClick={toggleLang}
-          title={lang === 'uz' ? 'Русский' : "O'zbek"}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
+            display: 'flex', alignItems: 'center', gap: 6,
             padding: isCollapsed ? '8px 0' : '7px 12px',
             width: isCollapsed ? '100%' : 'auto',
-            justifyContent: 'center',
-            borderRadius: 8,
+            justifyContent: 'center', borderRadius: 8,
             background: dark ? 'rgba(255,255,255,0.05)' : '#f1f3f9',
             color: dark ? '#a0a0c0' : '#64748b',
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            border: `1px solid ${border}`,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            flex: isCollapsed ? 'none' : 1,
-            letterSpacing: 0.5,
+            fontSize: '0.78rem', fontWeight: 700,
+            border: `1px solid ${border}`, cursor: 'pointer',
+            transition: 'all 0.2s', flex: isCollapsed ? 'none' : 1, letterSpacing: 0.5,
           }}
         >
           <TranslateRoundedIcon style={{ fontSize: 16 }} />
