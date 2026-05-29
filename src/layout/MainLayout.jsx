@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar/Sidebar";
 import Header from "../components/Header/Header";
 import SubSidebar from "../components/ManagementSidebar/ManagementSidebar";
 import Loader from "../components/UI/Loader/Loader";
+import Toast from "../components/UI/Toast/Toast";
 import { useApp } from "../context/AppContext";
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
@@ -152,6 +153,7 @@ export default function MainLayout() {
           );
         })}
       </nav>
+      <Toast />
     </div>
   );
 }

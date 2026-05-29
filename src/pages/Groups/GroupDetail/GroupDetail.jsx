@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { api } from "../../../api/api";
+import { toast } from "../../../components/UI/Toast/Toast";
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import AssessmentOutlinedIcon from '@mui/icons-material/AssessmentOutlined';
 import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded';
@@ -91,14 +92,16 @@ export default function GroupDetail() {
           api.post('/student-group', { student_id, group_id: Number(id) })
         )
       );
-      // Refresh group details
       detailedFetchedRef.current = false;
       setIsAddStudentModalOpen(false);
       setSelectedStudentIds([]);
-      // Refetch
       api.get(`/groups/one/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) })));
-    } catch { /* silent */ }
-    finally { setIsAddingStudent(false); }
+      toast.success(`${selectedStudentIds.length} ta talaba muvaffaqiyatli qo'shildi`);
+    } catch {
+      toast.error("Talaba qo'shishda xatolik yuz berdi");
+    } finally {
+      setIsAddingStudent(false);
+    }
   };
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from '../../api/api';
+import { toast } from '../../components/UI/Toast/Toast';
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded';
 import ArchiveOutlinedIcon from '@mui/icons-material/ArchiveOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
@@ -47,16 +48,23 @@ export default function Teachers() {
         else fetchTeachers();
       }
       setIsModalOpen(false); setSelectedTeacher(null);
+      toast.success(teacherToEdit?.id ? "O'qituvchi yangilandi" : "O'qituvchi qo'shildi");
     }).catch(err => {
       if (err.response?.status === 304) { setIsModalOpen(false); setSelectedTeacher(null); return; }
-      // Xatolik — silent (UI xato holati kerak bo'lsa keying versiyada qo'shiladi)
+      toast.error("Xatolik yuz berdi");
     }).finally(() => setIsLoading(false));
   };
 
   const actualDeleteTeacher = (tid) => {
     setIsLoading(true);
-    api.delete(`/teachers/${tid}`).then(res => { if (res.status === 200 || res.status === 204) setTeacherData(prev => prev.filter(t => t.id !== tid)); })
-      .catch(() => {})
+    api.delete(`/teachers/${tid}`)
+      .then(res => {
+        if (res.status === 200 || res.status === 204) {
+          setTeacherData(prev => prev.filter(t => t.id !== tid));
+          toast.success("O'qituvchi o'chirildi");
+        }
+      })
+      .catch(() => toast.error("O'chirishda xatolik yuz berdi"))
       .finally(() => setIsLoading(false));
   };
 
@@ -119,7 +127,7 @@ export default function Teachers() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       {teacher.photo ? (
-                        <img src={teacher.photo.startsWith('http') ? teacher.photo : `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/${teacher.photo.replace(/^\//, '')}`} alt={teacher.full_name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                        <img src={`https://najot-edu.softwareengineer.uz/files/${teacher.photo}`} alt={teacher.full_name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
                           {teacher.full_name?.charAt(0).toUpperCase() || 'T'}
@@ -158,7 +166,7 @@ export default function Teachers() {
             {teacherData.map((teacher, i) => (
               <div key={teacher.id ?? i} className="flex items-center gap-3 px-4 py-3">
                 {teacher.photo ? (
-                  <img src={teacher.photo.startsWith('http') ? teacher.photo : `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/${teacher.photo.replace(/^\//, '')}`} alt={teacher.full_name} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
+                  <img src={`https://najot-edu.softwareengineer.uz/files/${teacher.photo}`} alt={teacher.full_name} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
                 ) : (
                   <div className="w-11 h-11 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-base font-bold flex-shrink-0">
                     {teacher.full_name?.charAt(0).toUpperCase() || 'T'}

@@ -105,7 +105,22 @@ export default function Students() {
               {studentData.map((student) => (
                 <tr key={student.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3"><input type="checkbox" /></td>
-                  <td className="px-5 py-3"><span className="font-medium text-slate-800">{student.full_name}</span></td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      {student.photo ? (
+                        <img
+                          src={`https://najot-edu.softwareengineer.uz/files/${student.photo}`}
+                          alt={student.full_name}
+                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                          {student.full_name?.charAt(0).toUpperCase() || 'T'}
+                        </div>
+                      )}
+                      <span className="font-medium text-slate-800">{student.full_name}</span>
+                    </div>
+                  </td>
                   <td className="px-5 py-3">
                     <div className="flex flex-wrap gap-1">
                       {student.groups?.map((g, i) => <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-xs">{g.name}</span>)}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from '../../api/api';
+import { toast } from '../../components/UI/Toast/Toast';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
@@ -29,6 +30,9 @@ export default function Groups() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [activeGroup, setActiveGroup] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, group: null });
+
+  // status undefined yoki null bo'lsa ham FAOL deb hisoblanadi
+  const isActive = (status) => status === undefined || status === null || status === true || status === 'active' || status === 'ACTIVE';
 
   const fetchGroups = () => {
     setIsLoading(true);
@@ -110,8 +114,45 @@ export default function Groups() {
                 <tr key={group.id} onClick={() => navigate(`/dashboard/groups/${group.id}`)} className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <Switch defaultChecked={group.status} size="small" onClick={e => e.stopPropagation()} sx={{ width: 44, height: 24, padding: 0, '& .MuiSwitch-switchBase': { padding: '2px', '&.Mui-checked': { transform: 'translateX(20px)', color: '#fff', '& + .MuiSwitch-track': { backgroundColor: '#22c55e', opacity: 1 } } }, '& .MuiSwitch-thumb': { width: 20, height: 20 }, '& .MuiSwitch-track': { borderRadius: 12, backgroundColor: '#e2e8f0', opacity: 1 } }} />
-                      <span className="text-xs font-semibold text-green-600">FAOL</span>
+                      <Switch
+                        checked={isActive(group.status)}
+                        size="small"
+                        onClick={e => e.stopPropagation()}
+                        onChange={(e) => {
+                          const newStatus = e.target.checked;
+                          setGroups(prev => prev.map(g =>
+                            g.id === group.id ? { ...g, status: newStatus } : g
+                          ));
+                          api.patch(`/groups/${group.id}`, { status: newStatus })
+                            .then(() => toast.success(newStatus ? "Guruh faollashtirildi" : "Guruh nofaol qilindi"))
+                            .catch(() => {
+                              setGroups(prev => prev.map(g =>
+                                g.id === group.id ? { ...g, status: !newStatus } : g
+                              ));
+                              toast.error("Xatolik yuz berdi");
+                            });
+                        }}
+                        sx={{
+                          width: 44, height: 24, padding: 0,
+                          '& .MuiSwitch-switchBase': {
+                            padding: '2px',
+                            '&.Mui-checked': {
+                              transform: 'translateX(20px)',
+                              color: '#fff',
+                              '& + .MuiSwitch-track': { backgroundColor: '#22c55e', opacity: 1 }
+                            }
+                          },
+                          '& .MuiSwitch-thumb': { width: 20, height: 20 },
+                          '& .MuiSwitch-track': {
+                            borderRadius: 12,
+                            backgroundColor: '#ef4444',
+                            opacity: 1
+                          }
+                        }}
+                      />
+                      <span className={`text-xs font-semibold ${isActive(group.status) ? 'text-green-600' : 'text-red-600'}`}>
+                        {isActive(group.status) ? 'FAOL' : 'NOFAOL'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-5 py-3 font-semibold text-slate-800">{group.name}</td>

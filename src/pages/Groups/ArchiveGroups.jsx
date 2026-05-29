@@ -27,6 +27,8 @@ export default function ArchiveGroups() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editGroupData, setEditGroupData] = useState(null);
 
+  const isActive = (status) => status === undefined || status === null || status === true || status === 'active' || status === 'ACTIVE';
+
   const fetchArchivedGroups = () => {
     setIsLoading(true);
     api.get('/groups/archive').then(res => setGroupData(res.data.data || [])).catch(err => console.error(err)).finally(() => setIsLoading(false));
@@ -96,8 +98,42 @@ export default function ArchiveGroups() {
                 <tr key={group.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <Switch defaultChecked={group.status} size="small" onClick={e => e.stopPropagation()} sx={{ width: 44, height: 24, padding: 0, '& .MuiSwitch-switchBase': { padding: '2px' }, '& .MuiSwitch-thumb': { width: 20, height: 20 }, '& .MuiSwitch-track': { borderRadius: 12, backgroundColor: '#e2e8f0', opacity: 1 } }} />
-                      <span className="text-xs font-semibold text-green-600">FAOL</span>
+                      <Switch
+                        checked={isActive(group.status)}
+                        size="small"
+                        onClick={e => e.stopPropagation()}
+                        onChange={(e) => {
+                          const newStatus = e.target.checked;
+                          setGroupData(prev => prev.map(g =>
+                            g.id === group.id ? { ...g, status: newStatus } : g
+                          ));
+                          api.patch(`/groups/${group.id}`, { status: newStatus }).catch(() => {
+                            setGroupData(prev => prev.map(g =>
+                              g.id === group.id ? { ...g, status: !newStatus } : g
+                            ));
+                          });
+                        }}
+                        sx={{
+                          width: 44, height: 24, padding: 0,
+                          '& .MuiSwitch-switchBase': {
+                            padding: '2px',
+                            '&.Mui-checked': {
+                              transform: 'translateX(20px)',
+                              color: '#fff',
+                              '& + .MuiSwitch-track': { backgroundColor: '#22c55e', opacity: 1 }
+                            }
+                          },
+                          '& .MuiSwitch-thumb': { width: 20, height: 20 },
+                          '& .MuiSwitch-track': {
+                            borderRadius: 12,
+                            backgroundColor: '#ef4444',
+                            opacity: 1
+                          }
+                        }}
+                      />
+                      <span className={`text-xs font-semibold ${isActive(group.status) ? 'text-green-600' : 'text-red-600'}`}>
+                        {isActive(group.status) ? 'FAOL' : 'NOFAOL'}
+                      </span>
                     </div>
                   </td>
                   <td className="px-5 py-3 font-semibold text-slate-800">{group.name}</td>
