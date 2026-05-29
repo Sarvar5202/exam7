@@ -30,6 +30,10 @@ export default function GroupDetail() {
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [groupLessons, setGroupLessons] = useState([]);
   const [showAllSchedules, setShowAllSchedules] = useState(false);
+  const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false);
+  const [allStudents, setAllStudents] = useState([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
   const fileInputRef = useRef(null);
   const schedulesFetchedRef = useRef(false);
   const groupDetailsFetchedRef = useRef(false);
@@ -76,6 +80,25 @@ export default function GroupDetail() {
       setVideoRefresh(p => p + 1); handleModalClose();
     } catch { /* silent */ }
     finally { setIsUploadingVideo(false); }
+  };
+
+  const handleAddStudents = async () => {
+    if (selectedStudentIds.length === 0) return;
+    setIsAddingStudent(true);
+    try {
+      await Promise.all(
+        selectedStudentIds.map(student_id =>
+          api.post('/student-group', { student_id, group_id: Number(id) })
+        )
+      );
+      // Refresh group details
+      detailedFetchedRef.current = false;
+      setIsAddStudentModalOpen(false);
+      setSelectedStudentIds([]);
+      // Refetch
+      api.get(`/groups/one/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) })));
+    } catch { /* silent */ }
+    finally { setIsAddingStudent(false); }
   };
 
   useEffect(() => {
@@ -144,9 +167,11 @@ export default function GroupDetail() {
       {/* Tab 0: Ma'lumotlar */}
       {activeTab === "Ma'lumotlar" && (
         <>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h3 className="text-sm font-bold text-slate-900 mb-4">Mentors</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-900">Mentors</h3>
+              </div>
               <div className="flex flex-wrap gap-4">
                 {groupDetails?.teachers?.map((t, i) => (
                   <div key={i} className="flex flex-col items-center gap-2">
@@ -157,6 +182,49 @@ export default function GroupDetail() {
                 ))}
               </div>
             </div>
+
+            {/* Talabalar kartasi */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-slate-900">Talabalar</h3>
+                <button
+                  onClick={() => {
+                    if (allStudents.length === 0) {
+                      api.get('/students').then(res => {
+                        setAllStudents(res.data?.data || []);
+                        setIsAddStudentModalOpen(true);
+                      }).catch(() => setIsAddStudentModalOpen(true));
+                    } else {
+                      setIsAddStudentModalOpen(true);
+                    }
+                  }}
+                  className="flex items-center gap-1 text-xs text-[#6c35de] font-semibold hover:underline"
+                >
+                  + Qo'shish
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(groupDetails?.students || []).slice(0, 8).map((s, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1.5">
+                    <div className="w-10 h-10 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-xs font-semibold">
+                      {s.full_name?.charAt(0).toUpperCase() || 'T'}
+                    </div>
+                    <span className="text-xs text-slate-600 text-center max-w-[60px] truncate">{s.full_name || s.name}</span>
+                  </div>
+                ))}
+                {(groupDetails?.students?.length || 0) > 8 && (
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold">
+                      +{groupDetails.students.length - 8}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {(groupDetails?.students?.length || 0) === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">Talaba qo'shilmagan</p>
+              )}
+            </div>
+
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
               <h3 className="text-sm font-bold text-slate-900 mb-4">Guruh parametrlari</h3>
               <div className="flex flex-col gap-3">
@@ -314,6 +382,81 @@ export default function GroupDetail() {
                   {isUploadingVideo ? "Yuklanmoqda..." : "Fayllarni yuklash"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Talaba qo'shish modali */}
+      {isAddStudentModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={() => setIsAddStudentModalOpen(false)}>
+          <div className="bg-white rounded-2xl w-[540px] max-w-full shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Talaba qo'shish</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Guruhga talabalarni tanlang</p>
+              </div>
+              <button onClick={() => setIsAddStudentModalOpen(false)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg">
+                <CloseRoundedIcon fontSize="small" />
+              </button>
+            </div>
+            <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+              {allStudents.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">Talabalar topilmadi</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {allStudents.map(student => {
+                    const isInGroup = (groupDetails?.students || []).some(s => s.id === student.id);
+                    const isSelected = selectedStudentIds.includes(student.id);
+                    return (
+                      <label
+                        key={student.id}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          isInGroup ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' :
+                          isSelected ? 'bg-[#6c35de]/10 border-[#6c35de]' : 'bg-white border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={isInGroup}
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudentIds(prev => [...prev, student.id]);
+                            } else {
+                              setSelectedStudentIds(prev => prev.filter(sid => sid !== student.id));
+                            }
+                          }}
+                          className="w-4 h-4 accent-[#6c35de]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-800">{student.full_name || student.name}</p>
+                          <p className="text-xs text-slate-400">{student.phone}</p>
+                        </div>
+                        {isInGroup && (
+                          <span className="text-xs text-slate-400 font-medium">Guruhda</span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={() => { setIsAddStudentModalOpen(false); setSelectedStudentIds([]); }}
+                disabled={isAddingStudent}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
+              >
+                Bekor qilish
+              </button>
+              <button
+                onClick={handleAddStudents}
+                disabled={isAddingStudent || selectedStudentIds.length === 0}
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#6c35de] rounded-lg hover:bg-[#5a2cc0] transition-colors disabled:opacity-50"
+              >
+                {isAddingStudent ? "Qo'shilmoqda..." : `Qo'shish (${selectedStudentIds.length})`}
+              </button>
             </div>
           </div>
         </div>
