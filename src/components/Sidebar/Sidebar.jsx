@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-import StorefrontRoundedIcon from "@mui/icons-material/StorefrontRounded";
+import najotIcon from "../../assets/najot-icon.png";
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import GroupRoundedIcon from '@mui/icons-material/GroupRounded';
@@ -70,7 +70,7 @@ export default function Sidebar({ isCollapsed, toggleSidebar, isSubSidebarOpen, 
         position: 'relative',
         marginBottom: 8,
       }}>
-        <StorefrontRoundedIcon style={{ color: '#6c35de', fontSize: 28, flexShrink: 0 }} />
+        <img src={najotIcon} alt="Najot" style={{ width: 28, height: 28, flexShrink: 0 }} />
         {!isCollapsed && (
           <span style={{ fontSize: '1.1rem', fontWeight: 800, color: textMain, letterSpacing: '-0.3px' }}>
             Najot CRM
