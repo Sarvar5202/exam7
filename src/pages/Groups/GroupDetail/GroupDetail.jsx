@@ -86,7 +86,12 @@ export default function GroupDetail() {
     if (!selectedVideoFile || !selectedLessonId) return;
     setIsUploadingVideo(true);
     try {
-      const fd = new FormData(); fd.append("file", selectedVideoFile);
+      const fileName = videoFileName.trim() || selectedVideoFile.name;
+      const uploadFile = new File([selectedVideoFile], fileName, {
+        type: selectedVideoFile.type,
+        lastModified: selectedVideoFile.lastModified,
+      });
+      const fd = new FormData(); fd.append("file", uploadFile);
       await api.post(`/files/group/${id}/upload?lessonId=${selectedLessonId}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
       setVideoRefresh(p => p + 1); handleModalClose();
     } catch { /* silent */ }
