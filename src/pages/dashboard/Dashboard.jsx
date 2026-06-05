@@ -32,12 +32,13 @@ export default function Dashboard() {
         const name =
           (user?.first_name && user?.last_name)
             ? `${user.first_name} ${user.last_name}`
-            : user?.full_name || user?.name || user?.username || user?.phone || "";
+            : user?.full_name || user?.name || user?.username || "";
         const role =
           user?.role === "SUPERADMIN" ? "Super Admin" :
           user?.role === "ADMIN"      ? "Admin"       :
           user?.role === "TEACHER"    ? (lang === 'ru' ? "Учитель" : "O'qituvchi") :
           user?.role || "";
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUserName(name);
         setUserRole(role);
       }
@@ -48,7 +49,7 @@ export default function Dashboard() {
     <div className="pt-6 flex flex-col gap-6 flex-1 min-h-0 overflow-auto pb-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          {t.dashboardGreeting}, <span className="text-[#6c35de]">{userName || "..."}</span>!
+          {t.dashboardGreeting}, <span className="text-[#6c35de]">{userName || userRole || "..."}</span>!
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           {userRole && <span className="font-semibold text-slate-700">{userRole} • </span>}
