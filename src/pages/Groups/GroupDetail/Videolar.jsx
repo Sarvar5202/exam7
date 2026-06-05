@@ -7,6 +7,64 @@ import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
 
 const FILE_BASE = import.meta.env.VITE_API_URL?.replace('/api/v1', '') ?? '';
 
+// Video URL ni barcha mumkin bo'lgan field nomlardan olish
+const getVideoUrl = (v, base) => {
+  const direct =
+    v?.video_url || v?.url || v?.path || v?.file_url ||
+    v?.videoUrl || v?.src || v?.link || v?.filepath ||
+    v?.filename || v?.originalname || "";
+
+  if (!direct) return "";
+  if (direct.startsWith("http")) return direct;
+  return `${base}/files/${direct.replace(/^\/+/, "")}`;
+};
+
+// Video player — token bilan Blob URL yasaydi
+function VideoPlayer({ video, base }) {
+  const [src, setSrc] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    const url = getVideoUrl(video, base);
+    if (!url) { setErr(true); setLoading(false); return; }
+
+    // Tokenli so'rov orqali video ma'lumotlarini olish
+    const token = sessionStorage.getItem("accessToken");
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(res => {
+        if (!res.ok) throw new Error(res.status);
+        return res.blob();
+      })
+      .then(blob => {
+        setSrc(URL.createObjectURL(blob));
+        setLoading(false);
+      })
+      .catch(() => {
+        // Blob olmasa to'g'ridan URL bilan urinib ko'ramiz
+        setSrc(url);
+        setLoading(false);
+      });
+
+    return () => { if (src.startsWith("blob:")) URL.revokeObjectURL(src); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video]);
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-16 bg-black">
+      <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+
+  if (err || !src) return (
+    <div className="flex items-center justify-center py-16 bg-black text-white/50 text-sm">
+      Video yuklanmadi
+    </div>
+  );
+
+  return <video controls autoPlay className="w-full max-h-[70vh]" src={src} />;
+}
+
 const thCls = "text-left px-4 py-3 font-semibold text-slate-500 text-xs";
 const tdCls = "px-4 py-3 text-sm text-slate-700";
 
@@ -86,10 +144,10 @@ export default function Videolar({ refreshTrigger }) {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]" onClick={() => setSelectedVideo(null)}>
           <div className="bg-[#1a1a2e] rounded-2xl overflow-hidden w-[800px] max-w-[95vw] shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-              <h2 className="text-white font-semibold text-sm">{selectedVideo.originalname || selectedVideo.title || "Video"}</h2>
+              <h2 className="text-white font-semibold text-sm">{selectedVideo.originalname || selectedVideo.title || selectedVideo.name || "Video"}</h2>
               <button onClick={() => setSelectedVideo(null)} className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white rounded-lg hover:bg-white/10 transition-colors"><CloseRoundedIcon fontSize="small" /></button>
             </div>
-            <video controls autoPlay className="w-full" src={`${FILE_BASE}/${selectedVideo.video_url}`} />
+            <VideoPlayer video={selectedVideo} base={FILE_BASE} />
           </div>
         </div>
       )}
