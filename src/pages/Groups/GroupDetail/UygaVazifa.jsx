@@ -9,6 +9,14 @@ import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
 const thCls = "text-left px-4 py-3 font-semibold text-slate-500 text-xs";
 const tdCls = "px-4 py-3 text-sm text-slate-700";
 
+const getHomeworkId = (lesson) =>
+  lesson?.homework?.[0]?.id ??
+  lesson?.homework_id ??
+  lesson?.homeworkId ??
+  lesson?.homework?.id ??
+  lesson?.homework?.homework_id ??
+  lesson?.id;
+
 export default function UygaVazifa() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -56,7 +64,7 @@ export default function UygaVazifa() {
       </thead>
       <tbody>
         {homeworkData.map((lesson, idx) => (
-          <tr key={`${lesson.id}-${idx}`} onClick={() => navigate(`/dashboard/groups/${id}/homework/${lesson.id}/results`)} className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors">
+          <tr key={`${lesson.id}-${idx}`} onClick={() => navigate(`/dashboard/groups/${id}/homework/${getHomeworkId(lesson)}/results`)} className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors">
             <td className={tdCls}>{idx + 1}</td>
             <td className={tdCls}>
               {lesson.homeworkPending > 0 ? (

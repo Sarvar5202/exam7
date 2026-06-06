@@ -62,7 +62,7 @@ export default function Login() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: dark ? '#0a0a0f' : '#eef0f5' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: dark ? '#0a0a0f' : '#f8fafc' }}>
 
       {/* Muvaffaqiyatli kirish toast — o'ng yuqori */}
       {showToast && (
@@ -103,28 +103,35 @@ export default function Login() {
       `}</style>
 
       {/* LEFT — ko'k panel, rasm */}
-      <div style={{
-        flex: 1,
-        background: dark
-          ? 'linear-gradient(160deg, #0d0d1a 0%, #12102a 100%)'
-          : 'linear-gradient(160deg, #1a2a4a 0%, #1e3a6a 100%)',
-        display: 'none',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 48,
-      }} className="lg:flex">
-        <img src="/study.svg" alt="study" style={{ maxWidth: 380, width: '100%' }} />
+      <div
+        className="hidden lg:flex"
+        style={{
+          width: '50%',
+          background: dark ? '#10172f' : '#203463',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '64px 56px',
+          minHeight: '100vh',
+          overflow: 'hidden',
+        }}
+      >
+        <img
+          src="/study.svg"
+          alt="study"
+          style={{ width: 'min(82%, 760px)', maxHeight: '78vh', objectFit: 'contain', display: 'block' }}
+        />
       </div>
 
       {/* RIGHT — forma */}
       <div style={{
+        width: '50%',
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '40px 24px',
-        background: dark ? '#111118' : '#ffffff',
+        padding: '56px 24px 28px',
+        background: dark ? '#111118' : '#f8fafc',
         overflowY: 'auto',
         position: 'relative',
         minWidth: 0,
@@ -174,14 +181,14 @@ export default function Login() {
 
         {/* Markaziy kontent */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-          <div style={{ width: '100%', maxWidth: 360, padding: '0 4px' }}>
+          <div style={{ width: '100%', maxWidth: 440, padding: '0 4px' }}>
 
             {/* Logo + sarlavha */}
             <div style={{ textAlign: 'center', marginBottom: 32 }}>
               <h1 style={{
                 fontSize: '0.8rem',
                 fontWeight: 700,
-                color: dark ? '#6060a0' : '#64748b',
+                color: dark ? '#b8c4ff' : '#0b245c',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 lineHeight: 1.7,
@@ -201,7 +208,7 @@ export default function Login() {
               <h2 style={{
                 fontSize: '1.25rem',
                 fontWeight: 800,
-                color: dark ? '#8866ff' : '#6c35de',
+                color: dark ? '#dbe4ff' : '#0b245c',
                 letterSpacing: '0.5px',
                 margin: 0,
               }}>
@@ -235,9 +242,9 @@ export default function Login() {
                   style={{
                     height: 48,
                     padding: '0 16px',
-                    borderRadius: 12,
-                    border: `1.5px solid ${dark ? '#2a2a3a' : '#e2e8f0'}`,
-                    background: dark ? '#16161f' : '#f8fafc',
+                    borderRadius: 8,
+                    border: `1px solid ${dark ? '#2a2a3a' : '#d7e0ef'}`,
+                    background: dark ? '#16161f' : '#e9f1ff',
                     color: dark ? '#f0f0f5' : '#1e293b',
                     fontSize: '1rem',
                     outline: 'none',
@@ -245,7 +252,7 @@ export default function Login() {
                     width: '100%',
                   }}
                   onFocus={e => e.target.style.borderColor = '#6c35de'}
-                  onBlur={e => e.target.style.borderColor = dark ? '#2a2a3a' : '#e2e8f0'}
+                  onBlur={e => e.target.style.borderColor = dark ? '#2a2a3a' : '#d7e0ef'}
                 />
               </div>
 
@@ -264,11 +271,11 @@ export default function Login() {
                   placeholder={t.passwordPlaceholder}
                   required
                   style={{
-                    height: 46,
+                    height: 48,
                     padding: '0 16px',
-                    borderRadius: 12,
-                    border: `1.5px solid ${dark ? '#2a2a3a' : '#e2e8f0'}`,
-                    background: dark ? '#16161f' : '#f8fafc',
+                    borderRadius: 8,
+                    border: `1px solid ${dark ? '#2a2a3a' : '#d7e0ef'}`,
+                    background: dark ? '#16161f' : '#e9f1ff',
                     color: dark ? '#f0f0f5' : '#1e293b',
                     fontSize: '0.9rem',
                     outline: 'none',
@@ -276,7 +283,7 @@ export default function Login() {
                     width: '100%',
                   }}
                   onFocus={e => e.target.style.borderColor = dark ? '#6c35de' : '#6c35de'}
-                  onBlur={e => e.target.style.borderColor = dark ? '#2a2a3a' : '#e2e8f0'}
+                  onBlur={e => e.target.style.borderColor = dark ? '#2a2a3a' : '#d7e0ef'}
                 />
               </div>
 
@@ -285,24 +292,20 @@ export default function Login() {
                 type="submit"
                 style={{
                   height: 48,
-                  borderRadius: 12,
-                  background: dark
-                    ? 'linear-gradient(135deg, #5a28c0 0%, #7a40e8 100%)'
-                    : 'linear-gradient(135deg, #6c35de 0%, #8b5cf6 100%)',
+                  borderRadius: 8,
+                  background: '#243363',
                   color: '#ffffff',
                   fontWeight: 700,
                   fontSize: '0.92rem',
                   border: 'none',
                   cursor: 'pointer',
                   marginTop: 4,
-                  boxShadow: dark
-                    ? '0 4px 20px rgba(108,53,222,0.35)'
-                    : '0 4px 20px rgba(108,53,222,0.25)',
+                  boxShadow: '0 6px 16px rgba(15, 23, 42, 0.18)',
                   transition: 'all 0.2s',
                   letterSpacing: '0.3px',
                 }}
-                onMouseOver={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 6px 24px rgba(108,53,222,0.45)'; }}
-                onMouseOut={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = dark ? '0 4px 20px rgba(108,53,222,0.35)' : '0 4px 20px rgba(108,53,222,0.25)'; }}
+                onMouseOver={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 20px rgba(15, 23, 42, 0.24)'; }}
+                onMouseOut={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 6px 16px rgba(15, 23, 42, 0.18)'; }}
               >
                 {t.loginBtn}
               </button>

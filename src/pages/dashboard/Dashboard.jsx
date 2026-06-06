@@ -59,13 +59,16 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {stats.map((stat, i) => (
-          <div key={i} className="bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm border border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-[#6c35de]/10 text-[#6c35de] flex items-center justify-center flex-shrink-0">
+          <div
+            key={i}
+            className="bg-white rounded-2xl py-6 px-5 flex items-center gap-4 shadow-sm border border-slate-100 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg cursor-pointer hover:border-[#6c35de]/30"
+          >
+            <div className="w-14 h-14 rounded-xl bg-[#6c35de]/10 text-[#6c35de] flex items-center justify-center flex-shrink-0 [&_svg]:w-7 [&_svg]:h-7">
               {stat.icon}
             </div>
             <div>
-              <p className="text-xs text-slate-500 leading-tight">{stat.label}</p>
-              <p className="text-xl font-bold text-slate-900">{stat.value}</p>
+              <p className="text-xs font-medium text-slate-500 leading-tight mb-1">{stat.label}</p>
+              <p className="text-3xl font-bold text-slate-900 leading-none">{stat.value}</p>
             </div>
           </div>
         ))}
