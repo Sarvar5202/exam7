@@ -7,7 +7,64 @@ import Switch from '@mui/material/Switch';
 
 const inputCls = "w-full h-10 px-3 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#6c35de] focus:ring-2 focus:ring-[#6c35de]/20 outline-none transition-all";
 
-const DATES = [2,5,7,9,12,14,16,19,21,23,26,28,30].map(d => ({ day: d, month: "May" }));
+const monthToNumber = (monthStr) => {
+  if (!monthStr) return null;
+  const lower = monthStr.toLowerCase().trim();
+  const months = {
+    jan: 1, january: 1, yan: 1, yanvar: 1,
+    feb: 2, february: 2, fev: 2, fevral: 2,
+    mar: 3, march: 3, mart: 3,
+    apr: 4, april: 4, aprel: 4,
+    may: 5,
+    jun: 6, june: 6, iyun: 6,
+    jul: 7, july: 7, iyul: 7,
+    aug: 8, august: 8, avg: 8, avgust: 8,
+    sep: 9, september: 9, sen: 9, sentabr: 9, sentyabr: 9,
+    oct: 10, october: 10, okt: 10, oktabr: 10, oktyabr: 10,
+    nov: 11, november: 11, noy: 11, noyabr: 11,
+    dec: 12, december: 12, dek: 12, dekabr: 12
+  };
+  for (const key in months) {
+    if (lower.startsWith(key)) {
+      return months[key];
+    }
+  }
+  return null;
+};
+
+const getYearFromStartDate = (startDate) => {
+  if (!startDate) return new Date().getFullYear();
+  const parts = startDate.split("-");
+  if (parts.length > 0) {
+    const yr = parseInt(parts[0], 10);
+    if (!isNaN(yr)) return yr;
+  }
+  return new Date().getFullYear();
+};
+
+const getFormattedDateStr = (day, monthStr, startDate) => {
+  const year = getYearFromStartDate(startDate);
+  const monthNum = monthToNumber(monthStr);
+  if (!monthNum) {
+    if (startDate) {
+      const parts = startDate.split("-");
+      if (parts.length > 1) return `${parts[0]}-${parts[1]}-${String(day).padStart(2, '0')}`;
+    }
+    const currentMonthNum = new Date().getMonth() + 1;
+    return `${year}-${String(currentMonthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  return `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
+
+const isFutureDate = (dateStr) => {
+  if (!dateStr) return false;
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return false;
+  const today = new Date();
+  const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return targetDate > todayDate;
+};
 
 export default function LessonDetail() {
   const { id, date } = useParams();
@@ -18,6 +75,9 @@ export default function LessonDetail() {
   const [description, setDescription] = useState("");
   const [students, setStudents] = useState([]);
   const [curriculumLessons, setCurriculumLessons] = useState([]);
+  const [schedules, setSchedules] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(0);
+  const [groupDetails, setGroupDetails] = useState(null);
 
   useEffect(() => {
     if (id && topicType === "O'quv reja bo'yicha" && curriculumLessons.length === 0) {
@@ -38,6 +98,53 @@ export default function LessonDetail() {
     }
   }, [id, date]);
 
+  useEffect(() => {
+    if (id) {
+      api.get(`/groups/${id}`).then(res => setGroupDetails(res.data?.data || res.data || {})).catch(() => {});
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      api.get(`/groups/${id}/schedules`).then(res => {
+        const formatted = [];
+        (res.data || []).forEach(item => {
+          Object.keys(item).sort((a,b) => Number(a)-Number(b)).forEach(key => {
+            const v = item[key];
+            formatted.push({ id: key, label: `${key}-o'quv oyi`, isCurrent: v.isActive, days: v.days.map((d, di) => ({ id: `${key}-${di}`, day: d.day, month: d.month, isCompleted: d.isCompleted })) });
+          });
+        });
+        setSchedules(formatted);
+      }).catch(() => {});
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (schedules.length > 0 && date) {
+      const parts = date.split("-");
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const monthNum = parseInt(parts[1], 10);
+        const dayNum = parseInt(parts[2], 10);
+        const foundIdx = schedules.findIndex(m => {
+          return m.days.some(d => {
+            const mNum = monthToNumber(d.month);
+            return d.day === dayNum && mNum === monthNum;
+          });
+        });
+        if (foundIdx !== -1) {
+          setCurrentMonth(foundIdx);
+        }
+      }
+    }
+  }, [schedules, date]);
+
+  useEffect(() => {
+    if (date && isFutureDate(date)) {
+      navigate(`/dashboard/groups/${id}`);
+    }
+  }, [date, id, navigate]);
+
   const handleSave = async () => {
     if (!topic.trim()) { return; }
     try {
@@ -50,27 +157,29 @@ export default function LessonDetail() {
   return (
     <div className="pt-6 flex flex-col gap-5 flex-1 min-h-0 overflow-auto pb-6">
       {/* Date navigator */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
-          <span className="text-sm font-semibold text-slate-800">1-o'quv oyi</span>
-          <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowRightRoundedIcon fontSize="small" /></button>
+      {schedules.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <button onClick={() => setCurrentMonth(p => Math.max(0, p-1))} disabled={currentMonth === 0} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
+            <span className="text-sm font-semibold text-slate-800">{schedules[currentMonth]?.label || ""}</span>
+            <button onClick={() => setCurrentMonth(p => Math.min(schedules.length - 1, p+1))} disabled={currentMonth >= schedules.length - 1 || schedules.length === 0} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"><KeyboardArrowRightRoundedIcon fontSize="small" /></button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(schedules[currentMonth]?.days || []).map((d, i) => {
+              const dateStr = getFormattedDateStr(d.day, d.month, groupDetails?.start_date);
+              const isFuture = isFutureDate(dateStr);
+              const isActive = date === dateStr;
+              return (
+                <div key={i} onClick={() => { if (!isFuture) navigate(`/dashboard/groups/${id}/lesson/${dateStr}`); }}
+                  className={`flex flex-col items-center px-3 py-2 rounded-xl border transition-all ${isActive ? 'bg-[#6c35de] border-[#6c35de] text-white' : isFuture ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-800 cursor-pointer hover:border-[#6c35de]'}`}>
+                  <span className="text-xs">{d.month}</span>
+                  <span className="text-sm font-bold">{d.day}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {DATES.map((d, i) => {
-            const dateStr = `2026-05-${String(d.day).padStart(2,'0')}`;
-            const isFuture = new Date(dateStr) > new Date();
-            const isActive = date === dateStr;
-            return (
-              <div key={i} onClick={() => { if (!isFuture) navigate(`/dashboard/groups/${id}/lesson/${dateStr}`); }}
-                className={`flex flex-col items-center px-3 py-2 rounded-xl border transition-all ${isActive ? 'bg-[#6c35de] border-[#6c35de] text-white' : isFuture ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-800 cursor-pointer hover:border-[#6c35de]'}`}>
-                <span className="text-xs">{d.month}</span>
-                <span className="text-sm font-bold">{d.day}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2">

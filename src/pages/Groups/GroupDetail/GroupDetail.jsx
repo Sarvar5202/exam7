@@ -16,6 +16,65 @@ import Videolar from './Videolar';
 const DAY_UZ = { MONDAY:"Du", TUESDAY:"Se", WEDNESDAY:"Ch", THURSDAY:"Pa", FRIDAY:"Ju", SATURDAY:"Sha", SUNDAY:"Yak" };
 const DAY_RU = { MONDAY:"Пн", TUESDAY:"Вт", WEDNESDAY:"Ср", THURSDAY:"Чт", FRIDAY:"Пт", SATURDAY:"Сб", SUNDAY:"Вс" };
 
+const monthToNumber = (monthStr) => {
+  if (!monthStr) return null;
+  const lower = monthStr.toLowerCase().trim();
+  const months = {
+    jan: 1, january: 1, yan: 1, yanvar: 1,
+    feb: 2, february: 2, fev: 2, fevral: 2,
+    mar: 3, march: 3, mart: 3,
+    apr: 4, april: 4, aprel: 4,
+    may: 5,
+    jun: 6, june: 6, iyun: 6,
+    jul: 7, july: 7, iyul: 7,
+    aug: 8, august: 8, avg: 8, avgust: 8,
+    sep: 9, september: 9, sen: 9, sentabr: 9, sentyabr: 9,
+    oct: 10, october: 10, okt: 10, oktabr: 10, oktyabr: 10,
+    nov: 11, november: 11, noy: 11, noyabr: 11,
+    dec: 12, december: 12, dek: 12, dekabr: 12
+  };
+  for (const key in months) {
+    if (lower.startsWith(key)) {
+      return months[key];
+    }
+  }
+  return null;
+};
+
+const getYearFromStartDate = (startDate) => {
+  if (!startDate) return new Date().getFullYear();
+  const parts = startDate.split("-");
+  if (parts.length > 0) {
+    const yr = parseInt(parts[0], 10);
+    if (!isNaN(yr)) return yr;
+  }
+  return new Date().getFullYear();
+};
+
+const getFormattedDateStr = (day, monthStr, startDate) => {
+  const year = getYearFromStartDate(startDate);
+  const monthNum = monthToNumber(monthStr);
+  if (!monthNum) {
+    if (startDate) {
+      const parts = startDate.split("-");
+      if (parts.length > 1) return `${parts[0]}-${parts[1]}-${String(day).padStart(2, '0')}`;
+    }
+    const currentMonthNum = new Date().getMonth() + 1;
+    return `${year}-${String(currentMonthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  return `${year}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
+
+const isFutureDate = (dateStr) => {
+  if (!dateStr) return false;
+  const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return false;
+  const today = new Date();
+  const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return targetDate > todayDate;
+};
+
 export default function GroupDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -127,6 +186,10 @@ export default function GroupDetail() {
           });
         });
         setSchedules(formatted);
+        const activeIdx = formatted.findIndex(m => m.isCurrent);
+        if (activeIdx !== -1) {
+          setCurrentMonth(activeIdx);
+        }
       }).catch(() => { schedulesFetchedRef.current = false; });
     }
   }, [id, tabIndex, lang]);
@@ -153,7 +216,7 @@ export default function GroupDetail() {
     }
   }, [id, isVideoModalOpen]);
 
-  const fakeCalendarDays = [2,5,7,9,12,14,16,19,21,23,26,28,30].map(d => ({ day: d, month: "May" }));
+
 
   return (
     <div className="pt-6 flex flex-col gap-5 flex-1 min-h-0 overflow-auto pb-6">
@@ -275,13 +338,18 @@ export default function GroupDetail() {
                   {sm.isCurrent && <span className="px-2 py-0.5 bg-[#6c35de]/10 text-[#6c35de] rounded-full text-xs font-medium">{t.currentMonth}</span>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {sm.days.map(d => (
-                    <div key={d.id} onClick={() => navigate(`/dashboard/groups/${id}/lesson/2026-05-${String(d.day).padStart(2,'0')}`)}
-                      className={`flex flex-col items-center px-3 py-2 rounded-xl border cursor-pointer transition-all hover:border-[#6c35de] hover:bg-[#6c35de]/5 ${d.isCompleted ? 'bg-slate-100 border-slate-200' : 'bg-white border-slate-200'}`}>
-                      <span className="text-xs text-slate-400">{d.month}</span>
-                      <span className="text-sm font-bold text-slate-800">{d.day}</span>
-                    </div>
-                  ))}
+                  {sm.days.map(d => {
+                    const dateStr = getFormattedDateStr(d.day, d.month, groupDetails?.start_date);
+                    const isFuture = isFutureDate(dateStr);
+                    return (
+                      <div key={d.id} 
+                        onClick={() => { if (!isFuture) navigate(`/dashboard/groups/${id}/lesson/${dateStr}`); }}
+                        className={`flex flex-col items-center px-3 py-2 rounded-xl border transition-all ${isFuture ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'cursor-pointer hover:border-[#6c35de] hover:bg-[#6c35de]/5'} ${d.isCompleted ? 'bg-slate-100 border-slate-200' : isFuture ? '' : 'bg-white border-slate-200'}`}>
+                        <span className="text-xs text-slate-400">{d.month}</span>
+                        <span className={`text-sm font-bold ${isFuture ? 'text-slate-300' : 'text-slate-800'}`}>{d.day}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -319,19 +387,24 @@ export default function GroupDetail() {
       {activeTab === TABS_LABELS[2] && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
           <div className="flex items-center gap-3 mb-5">
-            <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
-            <span className="text-sm font-semibold text-slate-800">May 2026</span>
-            <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"><KeyboardArrowRightRoundedIcon fontSize="small" /></button>
+            <button onClick={() => setCurrentMonth(p => Math.max(0, p-1))} disabled={currentMonth === 0} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"><KeyboardArrowLeftRoundedIcon fontSize="small" /></button>
+            <span className="text-sm font-semibold text-slate-800">{schedules[currentMonth]?.label || ""}</span>
+            <button onClick={() => setCurrentMonth(p => Math.min(schedules.length - 1, p+1))} disabled={currentMonth >= schedules.length - 1 || schedules.length === 0} className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-600 disabled:opacity-40 hover:bg-slate-50 transition-colors"><KeyboardArrowRightRoundedIcon fontSize="small" /></button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {fakeCalendarDays.map((item, i) => (
-              <div key={i} onClick={() => navigate(`/dashboard/groups/${id}/lesson/2026-05-${String(item.day).padStart(2,'0')}`)}
-                className="flex flex-col items-center px-4 py-3 rounded-xl bg-[#6c35de]/10 border border-[#6c35de]/20 cursor-pointer hover:bg-[#6c35de]/20 transition-colors">
-                <span className="text-xs text-[#6c35de]">{item.month}</span>
-                <span className="text-base font-bold text-[#6c35de]">{item.day}</span>
-              </div>
-            ))}
+            {(schedules[currentMonth]?.days || []).map((item, i) => {
+              const dateStr = getFormattedDateStr(item.day, item.month, groupDetails?.start_date);
+              const isFuture = isFutureDate(dateStr);
+              return (
+                <div key={i} onClick={() => { if (!isFuture) navigate(`/dashboard/groups/${id}/lesson/${dateStr}`); }}
+                  className={`flex flex-col items-center px-4 py-3 rounded-xl border transition-all ${isFuture ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'bg-[#6c35de]/10 border-[#6c35de]/20 cursor-pointer hover:bg-[#6c35de]/20 text-[#6c35de]'}`}>
+                  <span className="text-xs">{item.month}</span>
+                  <span className="text-base font-bold">{item.day}</span>
+                </div>
+              );
+            })}
           </div>
+          {(schedules.length === 0) && <p className="text-sm text-slate-400 text-center py-4">{t.noData || "Jadval yuklanmagan"}</p>}
         </div>
       )}
 
