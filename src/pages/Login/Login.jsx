@@ -1,15 +1,55 @@
-import logoImg from '../../assets/logo.png';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/api';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 
+const PRIMARY_DARK = '#1E2A4A';
+
+// ─── Markazlashtirilgan role normalizatsiyasi ────────────────────────
+// Backend'dan kelishi mumkin bo'lgan barcha formatlarni yagona formatga keltiradi:
+// "SUPER_ADMIN", "super_admin", "SuperAdmin", "superadmin" → "SUPERADMIN"
+// "ADMIN", "admin" → "ADMIN"
+// "TEACHER", "teacher" → "TEACHER"
+// "STUDENT", "student" → "STUDENT"
+function normalizeRole(role) {
+  if (!role) return '';
+  return String(role).toUpperCase().replace(/[-_\s]/g, '');
+}
+
+// Role asosida qaysi route'ga yo'naltirish kerakligini aniqlaydi
+// Kelajakda yangi rol qo'shilsa — faqat shu funksiyani yangilash kifoya
+function getRoleBasedRoute(role) {
+  const normalized = normalizeRole(role);
+  switch (normalized) {
+    case 'SUPERADMIN':
+    case 'ADMIN':
+      return '/dashboard';
+    case 'TEACHER':
+      return '/teacher/dashboard';
+    case 'STUDENT':
+      return '/student';
+    default:
+      return '/dashboard';
+  }
+}
+
+// Login qilishdan oldin barcha eski sessiya ma'lumotlarini tozalash
+// Bu eski rol keshlangan holda noto'g'ri panelga tushib qolishni oldini oladi
+function clearAllSessions() {
+  sessionStorage.removeItem('accessToken');
+  sessionStorage.removeItem('studentToken');
+  sessionStorage.removeItem('currentUser');
+  sessionStorage.removeItem('studentUser');
+  sessionStorage.removeItem('studentRefreshToken');
+}
+// ─────────────────────────────────────────────────────────────────────
+
 export default function Login() {
-  const { dark, toggleDark, lang, toggleLang, t } = useApp();
+  const { lang, t } = useApp();
   const [input, setInput] = useState({ phone: '', password: '' });
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -18,38 +58,71 @@ export default function Login() {
 
   function Submit(e) {
     e.preventDefault();
-    api.post('/auth/login', input).then(res => {
+    
+    // Faqat raqamlarni qoldirish
+    let cleanedPhone = input.phone.replace(/\D/g, '');
+
+    // 9 xonali → 998 qo'shish (masalan: 975661099 → 998975661099)
+    if (cleanedPhone.length === 9) {
+      cleanedPhone = '998' + cleanedPhone;
+    }
+    // 12 xonali bo'lishi kerak (998xxxxxxxxx)
+    const finalPhone = cleanedPhone;
+
+    const payload = { ...input, phone: finalPhone };
+
+    api.post('/auth/login', payload).then(res => {
       if (res.status === 201) {
         const auth = res.data?.accessToken;
+        const rawRole = res.data?.role;
+        const normalized = normalizeRole(rawRole);
+        const targetRoute = getRoleBasedRoute(rawRole);
+
+
         if (auth) {
-          sessionStorage.setItem("accessToken", auth);
+          // ── Yangi login oldidan eski sessiyalarni TOZALASH ──
+          clearAllSessions();
 
-          // API faqat accessToken qaytaradi — qo'shimcha ma'lumotlarni
-          // response dan yoki token payload dan olamiz
-          const user = res.data?.user || res.data?.admin || res.data?.data || null;
-          if (user && Object.keys(user).length > 0) {
-            sessionStorage.setItem("currentUser", JSON.stringify(user));
-          } else {
-            // Token payload (JWT) dan decode qilish
+          if (normalized === 'STUDENT') {
+            // Student uchun studentToken saqlaymiz
+            sessionStorage.setItem('studentToken', auth);
             try {
-              const payload = JSON.parse(atob(auth.split('.')[1]));
-              const userData = {
-                full_name: payload.full_name || payload.name || payload.username || "",
-                first_name: payload.first_name || "",
-                last_name: payload.last_name || "",
-                phone: payload.phone || input.phone || "",
-                role: payload.role || payload.roles?.[0] || "ADMIN",
-              };
-              sessionStorage.setItem("currentUser", JSON.stringify(userData));
+              const tokenPayload = JSON.parse(atob(auth.split('.')[1]));
+              sessionStorage.setItem('studentUser', JSON.stringify({
+                full_name: tokenPayload.full_name || tokenPayload.name || '',
+                phone: tokenPayload.phone || input.phone || '',
+                role: 'STUDENT',
+              }));
             } catch {
-              // decode ishlamasa — phone ni saqlaymiz
-              sessionStorage.setItem("currentUser", JSON.stringify({ phone: input.phone, role: "ADMIN" }));
+              sessionStorage.setItem('studentUser', JSON.stringify({ phone: input.phone, role: 'STUDENT' }));
             }
+            setSuccess(true);
+            setShowToast(true);
+            setTimeout(() => navigate(targetRoute, { replace: true }), 1200);
+          } else {
+            // SUPERADMIN / ADMIN / TEACHER
+            sessionStorage.setItem('accessToken', auth);
+            const user = res.data?.user || res.data?.admin || res.data?.data || null;
+            if (user && typeof user === 'object' && Object.keys(user).length > 0) {
+              // user objectga role'ni ham qo'shamiz (agar ichida yo'q bo'lsa)
+              const userWithRole = { ...user, role: user.role || rawRole || normalized };
+              sessionStorage.setItem('currentUser', JSON.stringify(userWithRole));
+            } else {
+              try {
+                const tokenPayload = JSON.parse(atob(auth.split('.')[1]));
+                sessionStorage.setItem('currentUser', JSON.stringify({
+                  full_name: tokenPayload.full_name || tokenPayload.name || tokenPayload.username || '',
+                  phone: tokenPayload.phone || input.phone || '',
+                  role: rawRole || tokenPayload.role || 'ADMIN',
+                }));
+              } catch {
+                sessionStorage.setItem('currentUser', JSON.stringify({ phone: input.phone, role: rawRole || 'ADMIN' }));
+              }
+            }
+            setSuccess(true);
+            setShowToast(true);
+            setTimeout(() => navigate(targetRoute, { replace: true }), 1200);
           }
-
-          setSuccess(true);
-          setShowToast(true);
-          setTimeout(() => navigate('/dashboard', { replace: true }), 1500);
         } else { setError(true); }
       } else { setError(true); }
     }).catch(() => setError(true));
@@ -61,263 +134,312 @@ export default function Login() {
     setInput(cur => ({ ...cur, [e.target.id]: e.target.value }));
   }
 
+  const currentYear = new Date().getFullYear();
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: dark ? '#0a0a0f' : '#f8fafc' }}>
-
-      {/* Muvaffaqiyatli kirish toast — o'ng yuqori */}
-      {showToast && (
-        <div style={{
-          position: 'fixed',
-          top: 20,
-          right: 20,
-          zIndex: 99999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '14px 18px',
-          background: '#f0fdf4',
-          border: '1.5px solid #bbf7d0',
-          borderRadius: 14,
-          boxShadow: '0 4px 20px rgba(34,197,94,0.15)',
-          animation: 'slideIn 0.3s ease',
-          minWidth: 240,
-        }}>
-          <CheckCircleRoundedIcon style={{ color: '#22c55e', fontSize: 22, flexShrink: 0 }} />
-          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#15803d', flex: 1 }}>
-            Muvaffaqiyatli kirildi
-          </span>
-          <button
-            onClick={() => setShowToast(false)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#86efac', display: 'flex' }}
-          >
-            <CloseRoundedIcon style={{ fontSize: 16 }} />
-          </button>
-        </div>
-      )}
-
+    <>
       <style>{`
-        @keyframes slideIn {
+        @keyframes loginSlideIn {
           from { opacity: 0; transform: translateX(30px); }
           to   { opacity: 1; transform: translateX(0); }
         }
+        @keyframes loginShake {
+          0%, 100% { transform: translateX(0); }
+          15%, 45%, 75% { transform: translateX(-6px); }
+          30%, 60%, 90% { transform: translateX(6px); }
+        }
+        .login-shake { animation: loginShake 0.5s ease; }
+
+        .login-page {
+          --primary-dark: ${PRIMARY_DARK};
+          display: flex;
+          min-height: 100vh;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        /* LEFT PANEL */
+        .login-left {
+          width: 47%;
+          min-height: 100vh;
+          background: var(--primary-dark);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem;
+          overflow: hidden;
+        }
+        .login-left img {
+          width: min(85%, 600px);
+          max-height: 80vh;
+          object-fit: contain;
+          display: block;
+        }
+
+        /* RIGHT PANEL */
+        .login-right {
+          width: 53%;
+          flex: 1;
+          min-height: 100vh;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-between;
+          padding: 2rem 1.5rem 1.5rem;
+          overflow-y: auto;
+        }
+
+        /* LOGO SECTION */
+        .login-logo-section {
+          text-align: center;
+          margin-bottom: 2.5rem;
+        }
+        .login-logo-section img {
+          height: 9rem;
+          width: auto;
+          object-fit: contain;
+          display: block;
+          margin: 0 auto;
+        }
+
+        /* FORM */
+        .login-form-wrapper {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+        }
+        .login-form-container {
+          width: 100%;
+          max-width: 22rem;
+          padding: 0 0.25rem;
+        }
+        .login-form {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .login-input-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+        }
+        .login-input {
+          height: 3rem;
+          padding: 0 1rem;
+          border-radius: 0.5rem;
+          border: 1px solid #d1d5db;
+          background: #ffffff;
+          color: #1e293b;
+          font-size: 0.95rem;
+          outline: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+          width: 100%;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+        .login-input::placeholder {
+          color: #9ca3af;
+          font-size: 0.9rem;
+        }
+        .login-input:focus {
+          border-color: var(--primary-dark);
+          box-shadow: 0 0 0 3px rgba(30, 42, 74, 0.08);
+        }
+
+        /* BUTTON */
+        .login-btn {
+          height: 3rem;
+          border-radius: 0.5rem;
+          background: var(--primary-dark);
+          color: #ffffff;
+          font-weight: 700;
+          font-size: 0.95rem;
+          border: none;
+          cursor: pointer;
+          margin-top: 0.25rem;
+          transition: all 0.2s ease;
+          letter-spacing: 0.3px;
+          font-family: inherit;
+          width: 100%;
+        }
+        .login-btn:hover {
+          background: #162040;
+          box-shadow: 0 4px 14px rgba(30, 42, 74, 0.25);
+        }
+        .login-btn:active {
+          transform: scale(0.98);
+        }
+
+        /* COPYRIGHT */
+        .login-copyright {
+          text-align: center;
+          padding-top: 1rem;
+        }
+        .login-copyright p {
+          font-size: 0.75rem;
+          color: #9ca3af;
+          margin: 0;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+          .login-left {
+            display: none;
+          }
+          .login-right {
+            width: 100%;
+            padding: 2rem 1.5rem 1.5rem;
+          }
+          .login-logo-section img {
+            height: 7rem;
+          }
+          .login-form-container {
+            max-width: 100%;
+            padding: 0 1rem;
+          }
+        }
       `}</style>
 
-      {/* LEFT — ko'k panel, rasm */}
-      <div
-        className="hidden lg:flex"
-        style={{
-          width: '50%',
-          background: dark ? '#10172f' : '#203463',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '64px 56px',
-          minHeight: '100vh',
-          overflow: 'hidden',
-        }}
-      >
-        <img
-          src="/study.svg"
-          alt="study"
-          style={{ width: 'min(82%, 760px)', maxHeight: '78vh', objectFit: 'contain', display: 'block' }}
-        />
-      </div>
+      <div className="login-page">
 
-      {/* RIGHT — forma */}
-      <div style={{
-        width: '50%',
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '56px 24px 28px',
-        background: dark ? '#111118' : '#f8fafc',
-        overflowY: 'auto',
-        position: 'relative',
-        minWidth: 0,
-      }}>
+        {/* Success toast — o'ng yuqori */}
+        {showToast && (
+          <div style={{
+            position: 'fixed',
+            top: 20,
+            right: 20,
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '14px 18px',
+            background: '#f0fdf4',
+            border: '1.5px solid #bbf7d0',
+            borderRadius: 14,
+            boxShadow: '0 4px 20px rgba(34,197,94,0.15)',
+            animation: 'loginSlideIn 0.3s ease',
+            minWidth: 240,
+          }}>
+            <CheckCircleRoundedIcon style={{ color: '#22c55e', fontSize: 22, flexShrink: 0 }} />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#15803d', flex: 1 }}>
+              Muvaffaqiyatli kirildi
+            </span>
+            <button
+              onClick={() => setShowToast(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#86efac', display: 'flex' }}
+            >
+              <CloseRoundedIcon style={{ fontSize: 16 }} />
+            </button>
+          </div>
+        )}
 
-        {/* Til + Dark tugmalar */}
-        <div style={{ position: 'absolute', top: 20, right: 20, display: 'flex', gap: 8 }}>
-          {/* Til */}
-          <button
-            onClick={toggleLang}
-            style={{
-              padding: '5px 14px',
-              borderRadius: 8,
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              letterSpacing: 1,
-              background: dark ? '#1a1a28' : '#f1f3f9',
-              color: dark ? '#a0a0c0' : '#6c35de',
-              border: `1.5px solid ${dark ? '#2a2a3a' : '#e2e8f0'}`,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {lang === 'uz' ? 'RU' : 'UZ'}
-          </button>
-
-          {/* Dark mode */}
-          <button
-            onClick={toggleDark}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              background: dark ? '#1a1a28' : '#f1f3f9',
-              border: `1.5px solid ${dark ? '#2a2a3a' : '#e2e8f0'}`,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1rem',
-              transition: 'all 0.2s',
-            }}
-          >
-            {dark ? '☀️' : '🌙'}
-          </button>
+        {/* LEFT PANEL — dark navy + illustration */}
+        <div className="login-left">
+          <img
+            src="/login.img.png"
+            alt="Study illustration"
+            draggable={false}
+          />
         </div>
 
-        {/* Markaziy kontent */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-          <div style={{ width: '100%', maxWidth: 440, padding: '0 4px' }}>
+        {/* RIGHT PANEL — logo + form + copyright */}
+        <div className="login-right">
 
-            {/* Logo + sarlavha */}
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <h1 style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: dark ? '#b8c4ff' : '#0b245c',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                lineHeight: 1.7,
-                marginBottom: 16,
-              }}>
-                Muhammad al-Xorazmiy nomidagi<br />
-                Toshkent Axborot Texnologiyalari<br />
-                Universiteti
-              </h1>
+          {/* Center content vertically */}
+          <div className="login-form-wrapper">
+            <div className="login-form-container">
 
-              <img
-                src={logoImg}
-                alt="logo"
-                style={{ height: 72, width: 'auto', objectFit: 'contain', marginBottom: 14 }}
-              />
-
-              <h2 style={{
-                fontSize: '1.25rem',
-                fontWeight: 800,
-                color: dark ? '#dbe4ff' : '#0b245c',
-                letterSpacing: '0.5px',
-                margin: 0,
-              }}>
-                Najot CRM
-              </h2>
-            </div>
-
-            {/* Forma */}
-            <form onSubmit={Submit} className={error ? 'shake' : ''} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Collapse in={error}>
-                <Alert severity="error" sx={{ fontSize: '0.82rem', borderRadius: '10px', fontFamily: 'inherit', mb: 0.5 }}>
-                  {t.loginError}
-                </Alert>
-              </Collapse>
-
-              {/* Login input */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label
-                  htmlFor="phone"
-                  style={{ fontSize: '0.82rem', fontWeight: 600, color: dark ? '#8888aa' : '#475569' }}
-                >
-                  {t.loginLabel}
-                </label>
-                <input
-                  onChange={InputData}
-                  id="phone"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder={t.loginPlaceholder}
-                  required
-                  style={{
-                    height: 48,
-                    padding: '0 16px',
-                    borderRadius: 8,
-                    border: `1px solid ${dark ? '#2a2a3a' : '#d7e0ef'}`,
-                    background: dark ? '#16161f' : '#e9f1ff',
-                    color: dark ? '#f0f0f5' : '#1e293b',
-                    fontSize: '1rem',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                    width: '100%',
-                  }}
-                  onFocus={e => e.target.style.borderColor = '#6c35de'}
-                  onBlur={e => e.target.style.borderColor = dark ? '#2a2a3a' : '#d7e0ef'}
+              {/* Logo */}
+              <div className="login-logo-section">
+                <img
+                  src="/login.img.png"
+                  alt="NajotEdu CRM"
+                  draggable={false}
                 />
               </div>
 
-              {/* Parol input */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label
-                  htmlFor="password"
-                  style={{ fontSize: '0.82rem', fontWeight: 600, color: dark ? '#8888aa' : '#475569' }}
-                >
-                  {t.passwordLabel}
-                </label>
-                <input
-                  onChange={InputData}
-                  id="password"
-                  type="password"
-                  placeholder={t.passwordPlaceholder}
-                  required
-                  style={{
-                    height: 48,
-                    padding: '0 16px',
-                    borderRadius: 8,
-                    border: `1px solid ${dark ? '#2a2a3a' : '#d7e0ef'}`,
-                    background: dark ? '#16161f' : '#e9f1ff',
-                    color: dark ? '#f0f0f5' : '#1e293b',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                    width: '100%',
-                  }}
-                  onFocus={e => e.target.style.borderColor = dark ? '#6c35de' : '#6c35de'}
-                  onBlur={e => e.target.style.borderColor = dark ? '#2a2a3a' : '#d7e0ef'}
-                />
-              </div>
-
-              {/* Kirish tugma */}
-              <button
-                type="submit"
-                style={{
-                  height: 48,
-                  borderRadius: 8,
-                  background: '#243363',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  marginTop: 4,
-                  boxShadow: '0 6px 16px rgba(15, 23, 42, 0.18)',
-                  transition: 'all 0.2s',
-                  letterSpacing: '0.3px',
-                }}
-                onMouseOver={e => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 20px rgba(15, 23, 42, 0.24)'; }}
-                onMouseOut={e => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 6px 16px rgba(15, 23, 42, 0.18)'; }}
+              {/* Form */}
+              <form
+                onSubmit={Submit}
+                className={`login-form ${error ? 'login-shake' : ''}`}
               >
-                {t.loginBtn}
-              </button>
-            </form>
+                <Collapse in={error}>
+                  <Alert
+                    severity="error"
+                    sx={{
+                      fontSize: '0.82rem',
+                      borderRadius: '0.5rem',
+                      fontFamily: 'inherit',
+                      mb: 0.5,
+                    }}
+                  >
+                    {t.loginError}
+                  </Alert>
+                </Collapse>
+
+                {/* Login input */}
+                <div className="login-input-group">
+                  <input
+                    onChange={InputData}
+                    id="phone"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder={t.loginLabel}
+                    required
+                    className="login-input"
+                  />
+                </div>
+
+                {/* Password input */}
+                <div className="login-input-group" style={{ position: 'relative' }}>
+                  <input
+                    onChange={InputData}
+                    id="password"
+                    type="password"
+                    placeholder={t.passwordLabel}
+                    required
+                    className="login-input"
+                  />
+                  {/* Forgot Password Link */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                    <span
+                      onClick={() => navigate('/forgot-password')}
+                      style={{
+                        fontSize: '0.8rem',
+                        color: PRIMARY_DARK,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        userSelect: 'none',
+                        transition: 'color 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                    >
+                      Parolni unutdingizmi?
+                    </span>
+                  </div>
+                </div>
+
+                {/* Submit button */}
+                <button type="submit" className="login-btn">
+                  {t.loginBtn}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Copyright */}
+          <div className="login-copyright">
+            <p>Copyright © {currentYear} NajotEdu CRM</p>
           </div>
         </div>
-
-        {/* Copyright */}
-        <p style={{ fontSize: '0.72rem', color: dark ? '#3a3a55' : '#94a3b8', textAlign: 'center', marginTop: 16 }}>
-          {t.copyright}
-        </p>
       </div>
-    </div>
+    </>
   );
 }
+

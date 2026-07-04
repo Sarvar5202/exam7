@@ -161,10 +161,12 @@ export default function GroupDetail() {
     if (selectedStudentIds.length === 0) return;
     setIsAddingStudent(true);
     try {
-      await Promise.all(selectedStudentIds.map(student_id => api.post('/student-group', { student_id, group_id: Number(id) })));
+      await Promise.all(selectedStudentIds.map(student_id => api.post('/student-group', { student_id: Number(student_id), group_id: Number(id) })));
       detailedFetchedRef.current = false;
+      groupDetailsFetchedRef.current = false;
       setIsAddStudentModalOpen(false);
       setSelectedStudentIds([]);
+      api.get(`/groups/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) })));
       api.get(`/groups/one/${id}`).then(res => setGroupDetails(p => ({ ...p, ...(res.data?.data || res.data || {}) })));
       toast.success(`${selectedStudentIds.length} ${t.studentAddSuccess}`);
     } catch {

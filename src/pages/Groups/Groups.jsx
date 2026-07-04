@@ -38,13 +38,15 @@ export default function Groups() {
 
   const fetchGroups = () => {
     setIsLoading(true);
-    api.get('/groups/all').then(res => setGroups(res.data.data)).catch(err => console.log(err.message)).finally(() => setIsLoading(false));
+    api.get('/groups/all').then(res => setGroups(res.data.data)).catch(() => {}).finally(() => setIsLoading(false));
   };
 
   useEffect(() => { fetchGroups(); }, []);
 
   const actualDeleteGroup = (id) => {
-    api.delete(`/groups/${id}`).then(() => fetchGroups()).catch(err => console.log(err.message));
+    api.delete(`/groups/${id}`)
+      .then(() => { toast.success("Guruh o'chirildi"); fetchGroups(); })
+      .catch(() => toast.error("O'chirishda xatolik yuz berdi"));
   };
 
   const uniqueTeachers = new Set(groups.flatMap(g => g.teachers?.map(t => typeof t === 'object' ? String(t.id || t.full_name || '') : String(t)).filter(Boolean) || []));

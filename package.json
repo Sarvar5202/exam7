@@ -17,10 +17,13 @@
     "@tailwindcss/vite": "^4.3.0",
     "axios": "^1.16.1",
     "bootstrap-icons": "^1.13.1",
+    "dayjs": "^1.11.21",
+    "framer-motion": "^12.42.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.15.0",
+    "recharts": "^3.9.2",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {

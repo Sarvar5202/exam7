@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../../api/api";
+import { getVideoUrl } from "../../../utils/videoUtils";
 import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
@@ -10,24 +11,11 @@ const FILE_BASE = API_BASE.replace(/\/api\/v1\/?$/, '');
 
 const compact = (value) => String(value || "").replace(/^\/+/, "");
 const uniq = (items) => [...new Set(items.filter(Boolean))];
-const absoluteFileUrl = (value) => {
-  if (!value) return [];
-  const raw = String(value).trim();
-  if (!raw) return [];
-  if (/^https?:\/\//i.test(raw) || raw.startsWith("blob:")) return [raw];
-  if (raw.startsWith("/api/v1/")) return [`${FILE_BASE}${raw}`];
-  if (raw.startsWith("/")) return [`${FILE_BASE}${raw}`];
 
-  const path = compact(raw);
-  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
-  return [
-    `${FILE_BASE}/${encodedPath}`,
-    `${FILE_BASE}/files/${encodedPath}`,
-    `${FILE_BASE}/files/files/${encodedPath}`,
-    `${API_BASE}/files/${encodedPath}`,
-  ];
-};
-
+/**
+ * Extract all possible video URLs from a video object
+ * Uses centralized getVideoUrl utility for consistent URL construction
+ */
 const getVideoUrls = (v) => {
   const directFields = [
     v?.video_url,
@@ -55,10 +43,23 @@ const getVideoUrls = (v) => {
     v?.name,
   ];
 
-  return uniq([...directFields, ...pathFields, ...nameFields].flatMap(absoluteFileUrl));
+  const allFields = [...directFields, ...pathFields, ...nameFields];
+  const urls = [];
+
+  for (const field of allFields) {
+    if (!field) continue;
+    
+    // Use centralized getVideoUrl for consistent URL construction
+    const url = getVideoUrl(field);
+    if (url) {
+      urls.push(url);
+    }
+  }
+
+  return uniq(urls);
 };
 
-const getVideoUrl = (v) => getVideoUrls(v)[0] || "";
+const getVideoUrlFromObject = (v) => getVideoUrls(v)[0] || "";
 
 const getVideoList = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -141,7 +142,7 @@ function VideoPlayer({ video }) {
   if (errMsg && !src) return (
     <div className="flex flex-col items-center justify-center py-16 bg-black gap-2">
       <span className="text-white/50 text-sm">{errMsg}</span>
-      <span className="text-white/30 text-xs">{getVideoUrl(video)}</span>
+      <span className="text-white/30 text-xs">{getVideoUrlFromObject(video)}</span>
     </div>
   );
 

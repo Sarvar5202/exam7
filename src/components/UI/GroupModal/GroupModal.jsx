@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import AddStudentModal from "./AddStudentModal/AddStudentModal";
 import AddTeacherModal from "./AddTeacherModal/AddTeacherModal";
 import { api } from "../../../api/api";
+import { toast } from "../Toast/Toast";
 
 const DAYS = [
   { id: 'mon', label: 'Dushanba' }, { id: 'tue', label: 'Seshanba' },
@@ -13,6 +14,31 @@ const DAYS = [
   { id: 'sun', label: 'Yakshanba' },
 ];
 const DAY_MAP = { mon:'MONDAY', tue:'TUESDAY', wed:'WEDNESDAY', thu:'THURSDAY', fri:'FRIDAY', sat:'SATURDAY', sun:'SUNDAY' };
+const DAY_LABELS = Object.fromEntries(DAYS.map(day => [DAY_MAP[day.id], day.label]));
+
+const formatDateForApi = (value) => {
+  if (!value) return "";
+  const dmy = value.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return iso[0];
+  return value;
+};
+
+const parseApiDate = (value) => {
+  const formatted = formatDateForApi(value);
+  if (!formatted) return null;
+  const date = new Date(`${formatted}T00:00:00`);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const addMonths = (date, months) => {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + (Number(months) || 0));
+  return next;
+};
+
+const rangesOverlap = (startA, endA, startB, endB) => startA <= endB && startB <= endA;
 
 const inputCls = "w-full h-10 px-3 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#6c35de] focus:ring-2 focus:ring-[#6c35de]/20 outline-none transition-all";
 const labelCls = "block text-sm font-semibold text-slate-700 mb-1.5";
@@ -25,6 +51,7 @@ export default function GroupModal({ isOpen, onClose, onSave }) {
   const [studentsOptions, setStudentsOptions] = useState([]);
   const [courses, setCourses] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [groups, setGroups] = useState([]);
 
   const defaultData = { name: "", description: "", courseId: "", roomId: "", startDate: "", startTime: "09:00", maxStudent: 15, weekDays: [], teachers: [], students: [] };
   const [groupData, setGroupData] = useState(defaultData);
@@ -35,6 +62,7 @@ export default function GroupModal({ isOpen, onClose, onSave }) {
 
   const fetchCourses = () => { if (courses.length > 0) return; api.get('/courses').then(r => setCourses(r.data?.data || [])).catch(console.error); };
   const fetchRooms = () => { if (rooms.length > 0) return; api.get('/rooms').then(r => setRooms(r.data?.data || [])).catch(console.error); };
+  const fetchGroups = () => { if (groups.length > 0) return; api.get('/groups/all').then(r => setGroups(r.data?.data || [])).catch(console.error); };
 
   const toggleStudentModal = () => {
     if (!isAddStudentOpen && studentsOptions.length === 0) {
@@ -48,29 +76,101 @@ export default function GroupModal({ isOpen, onClose, onSave }) {
   };
 
   useEffect(() => {
-    if (isOpen) { setShouldRender(true); document.body.style.overflow = 'hidden'; fetchCourses(); fetchRooms(); }
+    if (isOpen) { setShouldRender(true); document.body.style.overflow = 'hidden'; fetchCourses(); fetchRooms(); fetchGroups(); }
     else { const t = setTimeout(() => { setShouldRender(false); document.body.style.overflow = 'unset'; }, 300); return () => clearTimeout(t); }
   }, [isOpen]);
+
+  const findBusyRoomConflict = ({ courseId, roomId, startDate, startTime, weekDays }) => {
+    const selectedDays = weekDays.map(d => DAY_MAP[d]);
+    const selectedCourse = courses.find(course => String(course.id) === String(courseId));
+    const selectedStart = parseApiDate(startDate);
+    const selectedEnd = selectedStart ? addMonths(selectedStart, selectedCourse?.duration_month || 0) : null;
+
+    return groups.find(group => {
+      if (String(group.status || "").toUpperCase() === "ARCHIVE") return false;
+
+      const groupRoomId = group.room_id || group.room?.id;
+      const groupTime = String(group.start_time || "").slice(0, 5);
+      const groupDays = group.week_day || [];
+      const groupStart = parseApiDate(group.start_date);
+      const groupEnd = groupStart ? addMonths(groupStart, group.course?.duration_month || 0) : null;
+      const hasDateConflict = selectedStart && selectedEnd && groupStart && groupEnd
+        ? rangesOverlap(selectedStart, selectedEnd, groupStart, groupEnd)
+        : true;
+
+      return (
+        String(groupRoomId) === String(roomId) &&
+        groupTime === startTime &&
+        hasDateConflict &&
+        groupDays.some(day => selectedDays.includes(day))
+      );
+    });
+  };
+
+  const getConflictMessage = (conflict) => {
+    const busyDays = (conflict.week_day || []).map(day => DAY_LABELS[day] || day).join(", ");
+    const roomName = conflict.room?.name || rooms.find(r => String(r.id) === String(conflict.room_id))?.name || "Bu xona";
+    const groupName = conflict.name ? ` "${conflict.name}" guruhi` : "";
+    return `${roomName} ${conflict.start_time?.slice(0, 5) || ""} vaqtida${groupName} bilan band${busyDays ? ` (${busyDays})` : ""}. Boshqa xona yoki vaqt tanlang.`;
+  };
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
     const { name, courseId, roomId, startDate, startTime, maxStudent, weekDays, teachers, students } = groupData;
-    if (!name || !courseId || !roomId || !startDate || !startTime || !maxStudent || weekDays.length === 0) { alert("Iltimos, barcha majburiy maydonlarni to'ldiring!"); return; }
+    
+    // 1-chi qism: Asosiy maydonlar validatsiyasi
+    if (!name || !courseId || !roomId || !startDate || !startTime || !maxStudent || weekDays.length === 0) {
+      toast.error("Iltimos, barcha majburiy maydonlarni to'ldiring!");
+      return;
+    }
+    
+    // 2-chi qism: O'qituvchilar va Talabalar validatsiyasi
+    if (teachers.length === 0) {
+      toast.error("Iltimos, kamida bitta o'qituvchi tanlang!");
+      return;
+    }
+    if (students.length === 0) {
+      toast.error("Iltimos, kamida bitta talaba tanlang!");
+      return;
+    }
 
-    let formattedDate = startDate;
-    const m = startDate.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
-    if (m) formattedDate = `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    const formattedDate = formatDateForApi(startDate);
 
-    const payload = { name, description: groupData.description, course_id: Number(courseId), room_id: Number(roomId), start_date: formattedDate, start_time: startTime, max_student: Number(maxStudent), week_day: weekDays.map(d => DAY_MAP[d]), teachers: teachers.map(Number), students: students.map(Number) };
+    const conflict = findBusyRoomConflict({ courseId, roomId, startDate: formattedDate, startTime, weekDays });
+    if (conflict) {
+      toast.error(getConflictMessage(conflict));
+      return;
+    }
 
-    api.post('/groups', payload).then(() => { if (onSave) onSave(); resetForm(); onClose(); })
+    const payload = { 
+        name, 
+        description: groupData.description || name, 
+        course_id: Number(courseId), 
+        room_id: Number(roomId), 
+        start_date: formattedDate, 
+        start_time: startTime, 
+        max_student: Number(maxStudent), 
+        week_day: weekDays.map(d => DAY_MAP[d]), 
+        teachers: teachers.map(Number), 
+        students: students.map(Number) 
+    };
+
+    api.post('/groups', payload)
+      .then((response) => {
+        toast.success("Guruh muvaffaqiyatli qo'shildi");
+        if (onSave) onSave();
+        resetForm();
+        onClose();
+      })
       .catch(err => {
         const d = err.response?.data;
-        let msg = err.message;
-        if (d?.errors) msg = Object.entries(d.errors).map(([k,v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join(' | ');
-        else if (Array.isArray(d?.message)) msg = d.message.join(', ');
-        else if (d?.message) msg = d.message;
-        alert("Xatolik: " + msg);
+        let msg =
+          (Array.isArray(d?.message) ? d.message.join(', ') : d?.message) ||
+          d?.error || err.message || "Xatolik yuz berdi";
+        if (String(msg).toLowerCase().includes("room is busy")) {
+          msg = "Bu xona tanlangan vaqtida band. Boshqa xona yoki vaqt tanlang.";
+        }
+        toast.error(msg);
       });
   };
 
@@ -122,10 +222,10 @@ export default function GroupModal({ isOpen, onClose, onSave }) {
             <div><label className={labelCls}>Dars vaqti <span className="text-red-500">*</span></label><input type="time" name="startTime" value={groupData.startTime} onChange={handleChange} className={inputCls} /></div>
             <div><label className={labelCls}>Boshlanish sanasi <span className="text-red-500">*</span></label><input type="date" name="startDate" value={groupData.startDate} onChange={handleChange} className={inputCls} /></div>
           </div>
-          <div><label className={labelCls}>Max talabalar</label><input type="number" name="maxStudent" value={groupData.maxStudent} onChange={handleChange} className={inputCls} /></div>
+          <div><label className={labelCls}>Max talabalar <span className="text-red-500">*</span></label><input type="number" name="maxStudent" value={groupData.maxStudent} onChange={handleChange} className={inputCls} /></div>
           <div><label className={labelCls}>Tavsif</label><textarea name="description" value={groupData.description} onChange={handleChange} className={inputCls + " h-20 py-2 resize-none"} placeholder="Guruh haqida..." /></div>
           <div>
-            <label className={labelCls}>O'qituvchilar</label>
+            <label className={labelCls}>O'qituvchilar <span className="text-red-500">*</span></label>
             <div className="flex flex-wrap gap-1.5 p-2.5 border border-slate-200 rounded-lg min-h-[40px]">
               {groupData.teachers.map(id => {
                 const t = teachersOptions.find(x => x.id === Number(id));
@@ -135,7 +235,7 @@ export default function GroupModal({ isOpen, onClose, onSave }) {
             </div>
           </div>
           <div>
-            <label className={labelCls}>Talabalar</label>
+            <label className={labelCls}>Talabalar <span className="text-red-500">*</span></label>
             <div className="flex flex-wrap gap-1.5 p-2.5 border border-slate-200 rounded-lg min-h-[40px]">
               {groupData.students.map(id => {
                 const s = studentsOptions.find(x => x.id === Number(id));

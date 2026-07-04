@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../../../api/api";
+import { toast } from "../../../components/UI/Toast/Toast";
 import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded';
 import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded';
 import Switch from '@mui/material/Switch';
@@ -77,6 +78,7 @@ export default function LessonDetail() {
   const [curriculumLessons, setCurriculumLessons] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
   const [groupDetails, setGroupDetails] = useState(null);
 
   useEffect(() => {
@@ -87,22 +89,41 @@ export default function LessonDetail() {
 
   useEffect(() => {
     if (id && date) {
+      setTopic("");
+      setDescription("");
+      setStudents([]);
       api.get(`/groups/${id}/lesson?date=${date}`).then(res => {
         const main = res.data?.data || res.data || {};
         const lesson = main.lesson || null;
         const attendance = main.attendance || main.attendances || [];
         setTopic(lesson?.topic || main.topic || "");
         setDescription(lesson?.description || main.description || "");
-        setStudents(attendance.map(s => ({ id: s.student_id, name: s.full_name || "Noma'lum", photo: s.photo, present: String(s.isPresent).toLowerCase() === "true" || s.isPresent === 1 })));
+        if (attendance && attendance.length > 0) {
+          setStudents(attendance.map(s => ({ id: s.student_id, name: s.full_name || "Noma'lum", photo: s.photo, present: String(s.isPresent).toLowerCase() === "true" || s.isPresent === 1 })));
+        } else if (groupDetails && groupDetails.students) {
+          setStudents(groupDetails.students.map(s => ({ id: s.id, name: s.full_name || s.name || "Noma'lum", photo: s.photo, present: true })));
+        }
       }).catch(() => {});
     }
-  }, [id, date]);
+  }, [id, date, groupDetails]);
 
   useEffect(() => {
     if (id) {
       api.get(`/groups/${id}`).then(res => setGroupDetails(res.data?.data || res.data || {})).catch(() => {});
     }
   }, [id]);
+
+  useEffect(() => {
+    if (groupDetails && students.length === 0) {
+      const gStudents = groupDetails.students || [];
+      setStudents(gStudents.map(s => ({
+        id: s.id,
+        name: s.full_name || s.name || "Noma'lum",
+        photo: s.photo,
+        present: true
+      })));
+    }
+  }, [groupDetails, students.length]);
 
   useEffect(() => {
     if (id) {
@@ -146,11 +167,39 @@ export default function LessonDetail() {
   }, [date, id, navigate]);
 
   const handleSave = async () => {
-    if (!topic.trim()) { return; }
+    if (!topic.trim()) {
+      toast.error("Mavzuni kiriting!");
+      return;
+    }
+    setIsSaving(true);
     try {
-      await api.post(`/groups/${id}/lesson`, { group_id: Number(id), topic, lesson_date: date, description, attendances: students.filter(s => s.present).map(s => ({ student_id: s.id, isPresent: s.present })) });
-    } catch {
-      // silent — UI da xatolik ko'rsatilmaydi
+      // 1. Darsni saqlash — group_id, topic, description, date (in query and body)
+      await api.post(`/groups/${id}/lesson?date=${date}`, {
+        group_id: Number(id),
+        topic,
+        description,
+        date: date,
+      });
+
+      // 2. Har bir talaba uchun davomatni alohida saqlash
+      if (students.length > 0) {
+        await Promise.allSettled(
+          students.map(s =>
+            api.post(`/attendance?date=${date}`, {
+              group_id: Number(id),
+              student_id: Number(s.id),
+              isPresent: Boolean(s.present),
+              date: date,
+            })
+          )
+        );
+      }
+
+      toast.success("Dars muvaffaqiyatli saqlandi!");
+    } catch (err) {
+      toast.error("Saqlashda xatolik yuz berdi!");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -254,7 +303,7 @@ export default function LessonDetail() {
       </div>
 
       <div className="flex justify-end">
-        <button onClick={handleSave} className="px-6 py-2.5 bg-[#6c35de] text-white text-sm font-semibold rounded-xl hover:bg-[#5a2cc0] transition-colors">Saqlash</button>
+        <button onClick={handleSave} disabled={isSaving} className="px-6 py-2.5 bg-[#6c35de] text-white text-sm font-semibold rounded-xl hover:bg-[#5a2cc0] transition-colors disabled:opacity-60 disabled:cursor-not-allowed">{isSaving ? "Saqlanmoqda..." : "Saqlash"}</button>
       </div>
     </div>
   );

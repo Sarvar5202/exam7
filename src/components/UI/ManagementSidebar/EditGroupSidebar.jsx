@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import AddStudentModal from "../GroupModal/AddStudentModal/AddStudentModal";
 import AddTeacherModal from "../GroupModal/AddTeacherModal/AddTeacherModal";
 import { api } from "../../../api/api";
+import { toast } from "../Toast/Toast";
 
 const DAYS = [
   { id: 'mon', label: 'Dushanba' }, { id: 'tue', label: 'Seshanba' },
@@ -96,10 +97,24 @@ export default function EditGroupSidebar({ isOpen, onClose, groupData, onSave })
     else { const t = setTimeout(() => { setShouldRender(false); document.body.style.overflow = 'unset'; }, 300); return () => clearTimeout(t); }
   }, [isOpen]);
 
+  const addStudentsToStudentPanel = async (studentIds, groupId) => {
+    if (!groupId || studentIds.length === 0) return;
+
+    await Promise.allSettled(
+      studentIds.map(student_id => api.post('/student-group', {
+        student_id: Number(student_id),
+        group_id: Number(groupId),
+      }))
+    );
+  };
+
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
     const { name, courseId, roomId, startDate, startTime, maxStudent, weekDays, teachers, students } = form;
-    if (!name || !courseId || !roomId || !startDate || !startTime || !maxStudent || weekDays.length === 0) { alert("Iltimos, barcha majburiy maydonlarni to'ldiring!"); return; }
+    if (!name || !courseId || !roomId || !startDate || !startTime || !maxStudent || weekDays.length === 0) {
+      toast.error("Iltimos, barcha majburiy maydonlarni to'ldiring!");
+      return;
+    }
 
     let formattedDate = startDate;
     const m = startDate.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
@@ -107,23 +122,26 @@ export default function EditGroupSidebar({ isOpen, onClose, groupData, onSave })
 
     const payload = { name, description: form.description, course_id: Number(courseId), room_id: Number(roomId), start_date: formattedDate, start_time: startTime, max_student: Number(maxStudent), week_day: weekDays.map(d => DAY_FWD[d] || d), teachers: teachers.map(Number), students: students.map(Number) };
 
-    api.patch(`/groups/${groupData.id}`, payload).then(() => {
-      if (onSave) {
-        const selCourse = courses.find(c => String(c.id) === String(courseId));
-        const selRoom = rooms.find(r => String(r.id) === String(roomId));
-        const selTeachers = form.teachers.map(id => teachersOptions.find(t => String(t.id) === String(id))).filter(Boolean);
-        const selStudents = form.students.map(id => studentsOptions.find(s => String(s.id) === String(id))).filter(Boolean);
-        onSave({ name, course: selCourse || groupData.course, start_time: startTime, week_day: weekDays.map(d => DAY_FWD[d] || d), room: selRoom ? selRoom.name : groupData.room, teachers: selTeachers, students: selStudents });
-      }
-      onClose();
-    }).catch(err => {
-      const d = err.response?.data;
-      let msg = err.message;
-      if (d?.errors) msg = Object.entries(d.errors).map(([k,v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join(' | ');
-      else if (Array.isArray(d?.message)) msg = d.message.join(', ');
-      else if (d?.message) msg = d.message;
-      alert("Xatolik: " + msg);
-    });
+    api.patch(`/groups/${groupData.id}`, payload)
+      .then(async () => {
+        await addStudentsToStudentPanel(students, groupData.id);
+        toast.success("Guruh muvaffaqiyatli yangilandi");
+        if (onSave) {
+          const selCourse = courses.find(c => String(c.id) === String(courseId));
+          const selRoom = rooms.find(r => String(r.id) === String(roomId));
+          const selTeachers = form.teachers.map(id => teachersOptions.find(t => String(t.id) === String(id))).filter(Boolean);
+          const selStudents = form.students.map(id => studentsOptions.find(s => String(s.id) === String(id))).filter(Boolean);
+          onSave({ name, course: selCourse || groupData.course, start_time: startTime, week_day: weekDays.map(d => DAY_FWD[d] || d), room: selRoom ? selRoom.name : groupData.room, teachers: selTeachers, students: selStudents });
+        }
+        onClose();
+      })
+      .catch(err => {
+        const d = err.response?.data;
+        const msg =
+          (Array.isArray(d?.message) ? d.message.join(', ') : d?.message) ||
+          d?.error || err.message || "Xatolik yuz berdi";
+        toast.error(msg);
+      });
   };
 
   if (!shouldRender) return null;

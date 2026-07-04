@@ -3,8 +3,11 @@ import { lazy, Suspense } from "react";
 import Loader from "../components/UI/Loader/Loader";
 import ProtectRoute from "../components/protect/ProtectRoute";
 import GuestRoute from "../components/protect/GuestRoute";
+import StudentProtectRoute from "../components/protect/StudentProtectRoute";
+import TeacherProtectRoute from "../components/protect/TeacherProtectRoute";
 
 const Login               = lazy(() => import("../pages/Login/Login"));
+const ForgotPassword      = lazy(() => import("../pages/Login/ForgotPassword"));
 const Management          = lazy(() => import("../pages/management/Management"));
 const NotFound            = lazy(() => import("../pages/NotFound/NotFound"));
 const MainLayout          = lazy(() => import("../layout/MainLayout"));
@@ -28,6 +31,27 @@ const Gifts               = lazy(() => import("../pages/Gifts/Gifts"));
 const Default             = lazy(() => import("../pages/management/default/Default"));
 const Dashboard           = lazy(() => import("../pages/dashboard/Dashboard"));
 
+const StudentLayout       = lazy(() => import("../layout/StudentLayout"));
+const StudentDashboard    = lazy(() => import("../pages/student/StudentDashboard"));
+const StudentGroups       = lazy(() => import("../pages/student/StudentGroups"));
+const StudentPayments     = lazy(() => import("../pages/student/StudentPayments"));
+const StudentStats        = lazy(() => import("../pages/student/StudentStats"));
+const StudentRating       = lazy(() => import("../pages/student/StudentRating"));
+const StudentShop         = lazy(() => import("../pages/student/StudentShop"));
+const StudentExtraLessons = lazy(() => import("../pages/student/StudentExtraLessons"));
+const StudentSettings     = lazy(() => import("../pages/student/StudentSettings"));
+const StudentGroupDetail  = lazy(() => import("../pages/student/StudentGroupDetail"));
+const StudentLessonDetail = lazy(() => import("../pages/student/StudentLessonDetail"));
+
+// ── Teacher panel ──────────────────────────────────────────────────────────
+const TeacherLayout           = lazy(() => import("../layout/TeacherLayout"));
+const TeacherDashboard        = lazy(() => import("../pages/teacher/TeacherDashboard"));
+const TeacherGroups           = lazy(() => import("../pages/teacher/TeacherGroups"));
+const TeacherGroupDetail      = lazy(() => import("../pages/teacher/TeacherGroupDetail"));
+const TeacherHomework         = lazy(() => import("../pages/teacher/TeacherHomework"));
+const TeacherAttendance       = lazy(() => import("../pages/teacher/TeacherAttendance"));
+const TeacherHomeworkCheck    = lazy(() => import("../pages/teacher/TeacherHomeworkCheck"));
+
 const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/login" replace /> },
   {
@@ -35,6 +59,14 @@ const router = createBrowserRouter([
     element: (
       <GuestRoute>
         <Suspense fallback={<Loader />}><Login /></Suspense>
+      </GuestRoute>
+    )
+  },
+  {
+    path: '/forgot-password',
+    element: (
+      <GuestRoute>
+        <Suspense fallback={<Loader />}><ForgotPassword /></Suspense>
       </GuestRoute>
     )
   },
@@ -70,6 +102,49 @@ const router = createBrowserRouter([
           { index: true,              element: <Default /> },
         ]
       },
+    ]
+  },
+  {
+    path: '/student/login',
+    element: <Navigate to='/login' replace />
+  },
+
+  {
+    path: '/student',
+    element: (
+      <StudentProtectRoute>
+        <Suspense fallback={<Loader />}><StudentLayout /></Suspense>
+      </StudentProtectRoute>
+    ),
+    children: [
+      { index: true, element: <Navigate to="dashboard" replace /> },
+      { path: 'dashboard', element: <StudentDashboard /> },
+      { path: 'payments', element: <StudentPayments /> },
+      { path: 'groups', element: <StudentGroups /> },
+      { path: 'groups/:id', element: <StudentGroupDetail /> },
+      { path: 'groups/:id/lesson/:lessonId', element: <StudentLessonDetail /> },
+      { path: 'stats', element: <StudentStats /> },
+      { path: 'rating', element: <StudentRating /> },
+      { path: 'shop', element: <StudentShop /> },
+      { path: 'extra-lessons', element: <StudentExtraLessons /> },
+      { path: 'settings', element: <StudentSettings /> },
+    ]
+  },
+  {
+    path: '/teacher',
+    element: (
+      <TeacherProtectRoute>
+        <Suspense fallback={<Loader />}><TeacherLayout /></Suspense>
+      </TeacherProtectRoute>
+    ),
+    children: [
+      { index: true, element: <Navigate to="dashboard" replace /> },
+      { path: 'dashboard',                                          element: <TeacherDashboard /> },
+      { path: 'groups',                                             element: <TeacherGroups /> },
+      { path: 'groups/:id',                                         element: <TeacherGroupDetail /> },
+      { path: 'groups/:groupId/homework/:homeworkId/check',         element: <TeacherHomeworkCheck /> },
+      { path: 'homework',                                           element: <TeacherHomework /> },
+      { path: 'attendance',                                         element: <TeacherAttendance /> },
     ]
   },
   {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 
 const AppContext = createContext();
 
@@ -14,8 +14,9 @@ export function AppProvider({ children }) {
 
   useEffect(() => { localStorage.setItem("nt_lang", lang); }, [lang]);
 
-  const toggleDark = () => setDark(p => !p);
-  const toggleLang = () => setLang(p => p === "uz" ? "ru" : "uz");
+  // Memoize callbacks to prevent unnecessary re-renders
+  const toggleDark = useCallback(() => setDark(p => !p), []);
+  const toggleLang = useCallback(() => setLang(p => p === "uz" ? "ru" : "uz"), []);
 
   const T = {
     uz: {
@@ -587,10 +588,17 @@ export function AppProvider({ children }) {
     }
   };
 
-  const t = T[lang];
+  // Memoize current language translations to prevent re-creating object on every render
+  const t = useMemo(() => T[lang], [lang]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(
+    () => ({ dark, toggleDark, lang, toggleLang, t }),
+    [dark, toggleDark, lang, toggleLang, t]
+  );
 
   return (
-    <AppContext.Provider value={{ dark, toggleDark, lang, toggleLang, t }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

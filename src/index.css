@@ -59,11 +59,17 @@
   }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #6c35de; }
+/* Scrollbar - Global Application */
+@supports (-moz-appearance:none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #c69c6d #f1f5f9;
+  }
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #c69c6d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #b08556; }
 
 /* Animations */
 @keyframes fadeIn {
@@ -100,3 +106,28 @@
 
 .shake { animation: shake 0.4s ease; }
 .fade-in { animation: fadeIn 0.3s ease both; }
+
+/* Custom Loader from User */
+.loader {
+  --color-1: #6c35de;
+  --color-2: #ff3d00;
+  --size: 2.1px;
+
+  width: calc(48 * var(--size));
+  height: calc(48 * var(--size));
+  border: calc(5 * var(--size)) solid var(--color-1);
+  border-bottom-color: var(--color-2);
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

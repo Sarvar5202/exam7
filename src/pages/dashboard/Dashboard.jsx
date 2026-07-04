@@ -33,10 +33,12 @@ export default function Dashboard() {
           (user?.first_name && user?.last_name)
             ? `${user.first_name} ${user.last_name}`
             : user?.full_name || user?.name || user?.username || "";
+        // Role normalizatsiyasi — barcha formatlarni qamrab olish
+        const rawRole = (user?.role || '').toUpperCase().replace(/[-_\s]/g, '');
         const role =
-          user?.role === "SUPERADMIN" ? "Super Admin" :
-          user?.role === "ADMIN"      ? "Admin"       :
-          user?.role === "TEACHER"    ? (lang === 'ru' ? "Учитель" : "O'qituvchi") :
+          rawRole === "SUPERADMIN" ? "Super Admin" :
+          rawRole === "ADMIN"      ? "Admin"       :
+          rawRole === "TEACHER"    ? (lang === 'ru' ? "Учитель" : "O'qituvchi") :
           user?.role || "";
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setUserName(name);
