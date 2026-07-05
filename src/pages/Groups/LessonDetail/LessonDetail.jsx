@@ -173,27 +173,19 @@ export default function LessonDetail() {
     }
     setIsSaving(true);
     try {
-      // 1. Darsni saqlash — group_id, topic, description, date (in query and body)
-      await api.post(`/groups/${id}/lesson?date=${date}`, {
+      // Dars + davomat birgalikda saqlash
+      // Backend haqiqiy schemasi: group_id, topic, description, lesson_date (ISO 8601), attendances (student_id[])
+      const presentStudentIds = students
+        .filter(s => s.present)
+        .map(s => ({ student_id: Number(s.id) }));
+
+      await api.post(`/groups/${id}/lesson`, {
         group_id: Number(id),
         topic,
         description,
-        date: date,
+        lesson_date: date,
+        attendances: presentStudentIds
       });
-
-      // 2. Har bir talaba uchun davomatni alohida saqlash
-      if (students.length > 0) {
-        await Promise.allSettled(
-          students.map(s =>
-            api.post(`/attendance?date=${date}`, {
-              group_id: Number(id),
-              student_id: Number(s.id),
-              isPresent: Boolean(s.present),
-              date: date,
-            })
-          )
-        );
-      }
 
       toast.success("Dars muvaffaqiyatli saqlandi!");
     } catch (err) {

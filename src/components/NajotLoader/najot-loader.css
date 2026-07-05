@@ -1,0 +1,172 @@
+/* ============================================================
+   NAJOT LOADER — Alohida fayl, mavjud CSS bilan to'qnashmaydi
+   Barcha klasslar "njl-" prefiksi bilan boshlanadi
+   ============================================================ */
+
+.njl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0d1b2a 0%, #1a2744 50%, #0d1b2a 100%);
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+  opacity: 1;
+  visibility: visible;
+}
+
+.njl-overlay.njl-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ── Logo bloki ── */
+.njl-logo-wrap {
+  position: relative;
+  margin-bottom: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.njl-logo-img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.njl-logo-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  position: relative;
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.njl-logo-title span {
+  color: #14b8a6;
+}
+
+/* Shimmer animatsiya */
+.njl-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 40%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.18) 60%,
+    transparent 100%
+  );
+  animation: njl-shimmer-move 2.2s ease-in-out infinite;
+}
+
+@keyframes njl-shimmer-move {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Subtitle ── */
+.njl-subtitle {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+
+/* ── Equalizer barlar ── */
+.njl-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 32px;
+  margin-bottom: 36px;
+}
+
+.njl-bar {
+  width: 5px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #14b8a6 0%, #0891b2 100%);
+  animation: njl-eq-bounce var(--njl-dur, 0.8s) ease-in-out infinite alternate;
+  transform-origin: bottom;
+}
+
+.njl-bar:nth-child(1) { --njl-dur: 0.65s; height: 14px; animation-delay: 0s; }
+.njl-bar:nth-child(2) { --njl-dur: 0.85s; height: 22px; animation-delay: 0.12s; }
+.njl-bar:nth-child(3) { --njl-dur: 0.70s; height: 32px; animation-delay: 0.24s; }
+.njl-bar:nth-child(4) { --njl-dur: 0.90s; height: 22px; animation-delay: 0.10s; }
+.njl-bar:nth-child(5) { --njl-dur: 0.60s; height: 14px; animation-delay: 0.18s; }
+
+@keyframes njl-eq-bounce {
+  0%   { transform: scaleY(0.25); opacity: 0.5; }
+  100% { transform: scaleY(1);    opacity: 1;   }
+}
+
+/* ── Progress bloki ── */
+.njl-progress-wrap {
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.njl-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.njl-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #14b8a6 0%, #06b6d4 100%);
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px rgba(20, 184, 166, 0.6);
+  min-width: 0%;
+}
+
+.njl-percent {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #14b8a6;
+  letter-spacing: 0.5px;
+}
+
+/* ── Status matni ── */
+.njl-status {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  min-height: 20px;
+  transition: opacity 0.3s ease;
+  text-align: center;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .njl-shimmer,
+  .njl-bar {
+    animation: none !important;
+  }
+  .njl-bar {
+    transform: scaleY(1) !important;
+    opacity: 0.7 !important;
+  }
+}
