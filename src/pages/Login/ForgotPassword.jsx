@@ -14,7 +14,7 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: Phone, 2: OTP, 3: Password, 4: Success
   const [phone, setPhone] = useState('');
-  const [otpCells, setOtpCells] = useState(['', '', '', '', '', '']); // 6 discrete cells
+  const [otpCells, setOtpCells] = useState(['', '', '', '']); // 4 discrete cells
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +27,7 @@ export default function ForgotPassword() {
   const [otpError, setOtpError] = useState(false); // Persistent error state for red borders
   const [slideDirection, setSlideDirection] = useState('enter'); // for view transitions
 
-  const otpRefs = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
+  const otpRefs = [useRef(), useRef(), useRef(), useRef()];
 
   // Countdown timer for code resend
   useEffect(() => {
@@ -80,7 +80,7 @@ export default function ForgotPassword() {
     setOtpCells(newCells);
 
     // Auto-focus next cell
-    if (index < 5) {
+    if (index < 3) {
       otpRefs[index + 1].current.focus();
     }
   };
@@ -106,17 +106,17 @@ export default function ForgotPassword() {
 
   const handleOtpPaste = (e) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('Text').replace(/\D/g, '').slice(0, 6);
+    const pastedData = e.clipboardData.getData('Text').replace(/\D/g, '').slice(0, 4);
     if (!pastedData) return;
 
     const newCells = [...otpCells];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       if (pastedData[i]) {
         newCells[i] = pastedData[i];
       }
     }
     setOtpCells(newCells);
-    const focusIndex = Math.min(pastedData.length, 5);
+    const focusIndex = Math.min(pastedData.length, 3);
     otpRefs[focusIndex].current.focus();
   };
 
@@ -180,7 +180,7 @@ export default function ForgotPassword() {
   const submitOtp = (e) => {
     if (e) e.preventDefault();
     const fullOtp = otpCells.join('');
-    if (fullOtp.length !== 6) {
+    if (fullOtp.length !== 4) {
       setOtpShake(true);
       setTimeout(() => setOtpShake(false), 500);
       return setError("Tasdiqlash kodini to'liq kiriting");
@@ -216,7 +216,7 @@ export default function ForgotPassword() {
         
         // 4. Auto-clear all OTP cells after shake animation completes
         setTimeout(() => {
-          setOtpCells(['', '', '', '', '', '']);
+          setOtpCells(['', '', '', '']);
           // 5. Return focus to first cell
           otpRefs[0].current?.focus();
         }, 500);
@@ -579,7 +579,7 @@ export default function ForgotPassword() {
                       Kodni tasdiqlang
                     </h2>
                     <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0 0 24px 0' }}>
-                      Biz sizning <strong>{phone}</strong> raqamingizga 6 xonali kod yubordik.
+                      Biz sizning <strong>{phone}</strong> raqamingizga 4 xonali kod yubordik.
                     </p>
 
                     {/* Numeric custom fields */}
@@ -634,7 +634,7 @@ export default function ForgotPassword() {
                             api.post('/auth/send-otp', { phone })
                               .then(() => {
                                 setResendTimer(60);
-                                setOtpCells(['', '', '', '', '', '']);
+                                setOtpCells(['', '', '', '']);
                                 otpRefs[0].current.focus();
                                 setLoading(false);
                               })
