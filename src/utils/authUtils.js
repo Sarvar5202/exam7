@@ -47,24 +47,16 @@ export function clearAllSessions() {
 }
 
 /**
- * Backend uchun raqamni yagona formatga keltiradi.
- * Backend +siz format kutadi: 998975661099
- * Masalan: +998975661099 -> 998975661099, 975661099 -> 998975661099
+ * Backend uchun raqamni tozalaydi.
+ * Foydalanuvchi kiritgan formatni saqlab, faqat bo'shliq va tireni olib tashlaydi.
+ * + belgisi va raqamlar saqlanadi.
+ * Admin: 998975661099 → 998975661099
+ * Student: +998906972007 → +998906972007
  */
 export function normalizePhone(phone) {
   if (!phone) return '';
-
-  // Faqat raqamlarni qoldirish (+, -, bo'shliq, qavslarni olib tashlash)
-  const digits = String(phone).trim().replace(/\D/g, '');
-  if (!digits) return '';
-
-  // 9 xonali → 998 qo'shish (masalan: 975661099 → 998975661099)
-  if (digits.length === 9) {
-    return `998${digits}`;
-  }
-
-  // 12 xonali yoki boshqa → xuddi shunday qaytarish
-  return digits;
+  // Faqat bo'shliq, tire, qavs, nuqtalarni olib tashla — + va raqamlarni saqla
+  return String(phone).trim().replace(/[\s\-().]/g, '');
 }
 
 /**
