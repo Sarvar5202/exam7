@@ -156,9 +156,9 @@ export default function ForgotPassword() {
       cleanPhone = '998' + cleanPhone;
     }
     if (cleanPhone.length !== 12) {
-      return setError("Telefon raqami noto'g'ri (namuna: +998901234567)");
+      return setError("Telefon raqami noto'g'ri (namuna: 998901234567)");
     }
-    const formattedPhone = '+' + cleanPhone;
+    const formattedPhone = cleanPhone; // + belgisisiz
 
     setLoading(true);
     setError('');
@@ -193,7 +193,7 @@ export default function ForgotPassword() {
     if (!cleanPhone.startsWith('998') && cleanPhone.length === 9) {
       cleanPhone = '998' + cleanPhone;
     }
-    const formattedPhone = '+' + cleanPhone;
+    const formattedPhone = cleanPhone; // + belgisisiz
 
     api.post('/auth/verify-otp', { phone: formattedPhone, otp: fullOtp })
       .then((response) => {
@@ -253,13 +253,12 @@ export default function ForgotPassword() {
     if (!cleanPhone.startsWith('998') && cleanPhone.length === 9) {
       cleanPhone = '998' + cleanPhone;
     }
-    const formattedPhone = '+' + cleanPhone;
+    const formattedPhone = cleanPhone; // + belgisisiz
 
     setLoading(true);
     setError('');
 
     // SECURITY WARNING: /api/v1/auth/change-password endpoint does not verify OTP confirmation server-side.
-    // This flow is UX-only protection, not real security. Backend team must add OTP-verified reset token before production launch.
     api.put('/auth/change-password', { phone: formattedPhone, password: newPass })
       .then(() => {
         setLoading(false);

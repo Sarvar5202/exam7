@@ -48,19 +48,23 @@ export function clearAllSessions() {
 
 /**
  * Backend uchun raqamni yagona formatga keltiradi.
- * Masalan: 975661099 -> +998975661099, 998975661099 -> +998975661099.
+ * Backend +siz format kutadi: 998975661099
+ * Masalan: +998975661099 -> 998975661099, 975661099 -> 998975661099
  */
 export function normalizePhone(phone) {
   if (!phone) return '';
 
+  // Faqat raqamlarni qoldirish (+, -, bo'shliq, qavslarni olib tashlash)
   const digits = String(phone).trim().replace(/\D/g, '');
   if (!digits) return '';
 
+  // 9 xonali → 998 qo'shish (masalan: 975661099 → 998975661099)
   if (digits.length === 9) {
-    return `+998${digits}`;
+    return `998${digits}`;
   }
 
-  return `+${digits}`;
+  // 12 xonali yoki boshqa → xuddi shunday qaytarish
+  return digits;
 }
 
 /**
