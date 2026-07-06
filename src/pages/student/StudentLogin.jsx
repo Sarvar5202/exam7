@@ -8,6 +8,7 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { useApp } from '../../context/AppContext';
 import { loginStudent } from '../../api/studentApi';
+import { getRoleFromToken, normalizePhone, normalizeRole } from '../../utils/authUtils';
 
 export default function StudentLogin() {
   const { dark, toggleDark, lang, toggleLang, t } = useApp();
@@ -23,11 +24,13 @@ export default function StudentLogin() {
     setLoading(true);
 
     try {
-      const res = await loginStudent(input.phone.trim(), input.password.trim());
+      const normalizedPhone = normalizePhone(input.phone);
+      const res = await loginStudent(normalizedPhone, input.password.trim());
       const data = res.data;
+      const role = normalizeRole(data.role) || getRoleFromToken(data.accessToken);
 
       // Role tekshirish — faqat STUDENT kirishi mumkin
-      if (data.role !== 'STUDENT') {
+      if (role !== 'STUDENT') {
         setError(
           lang === 'uz'
             ? "Bu sahifa faqat studentlar uchun. Admin paneldan foydalaning."
@@ -42,9 +45,9 @@ export default function StudentLogin() {
       sessionStorage.setItem('studentRefreshToken', data.refreshToken);
       sessionStorage.setItem('studentUser', JSON.stringify({
         full_name: data.full_name || data.name || 'Student',
-        phone: input.phone.trim(),
+        phone: normalizedPhone,
         email: data.email || '',
-        role: data.role,
+        role: role || 'STUDENT',
         id: data.id,
       }));
 

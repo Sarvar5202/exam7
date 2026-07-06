@@ -282,7 +282,7 @@ export default function LessonDetail() {
             <div key={s.id} className="flex items-center justify-between px-5 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 {s.photo ? (
-                  <img src={s.photo.startsWith('http') ? s.photo : `${import.meta.env.VITE_API_URL?.replace('/api/v1', '')}/${s.photo}`} alt={s.name} className="w-8 h-8 rounded-full object-cover" />
+                  <img src={s.photo.startsWith('http') ? s.photo : `${(import.meta.env.VITE_API_URL ?? 'https://najot-edu.softwareengineer.uz/api/v1').replace('/api/v1', '')}/${s.photo}`} alt={s.name} className="w-8 h-8 rounded-full object-cover" />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-[#6c35de] text-white flex items-center justify-center text-sm font-semibold">{s.name.charAt(0)}</div>
                 )}

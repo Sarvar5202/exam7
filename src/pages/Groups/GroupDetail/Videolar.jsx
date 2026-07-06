@@ -6,7 +6,7 @@ import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineR
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://najot-edu.softwareengineer.uz/api/v1';
 const FILE_BASE = API_BASE.replace(/\/api\/v1\/?$/, '');
 
 const compact = (value) => String(value || "").replace(/^\/+/, "");

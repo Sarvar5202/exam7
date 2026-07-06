@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const endpoint = import.meta.env.VITE_API_URL;
+const endpoint = import.meta.env.VITE_API_URL || 'https://najot-edu.softwareengineer.uz/api/v1';
 
 export const studentApi = axios.create({
   baseURL: endpoint,

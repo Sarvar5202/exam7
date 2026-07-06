@@ -25,7 +25,7 @@ const TAB_TO_STATUS = {
   Bajarilmagan:        "CHECKED",
 };
 
-const FILE_BASE = import.meta.env.VITE_API_URL?.replace('/api/v1', '') ?? '';
+const FILE_BASE = (import.meta.env.VITE_API_URL ?? 'https://najot-edu.softwareengineer.uz/api/v1').replace('/api/v1', '');
 
 // Fayl URL ni to'g'ri shakllantirish
 const getFileUrl = (file) => {

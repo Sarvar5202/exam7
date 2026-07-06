@@ -47,15 +47,46 @@ export function clearAllSessions() {
 }
 
 /**
+ * Backend uchun raqamni yagona formatga keltiradi.
+ * Masalan: 975661099 -> +998975661099, 998975661099 -> +998975661099.
+ */
+export function normalizePhone(phone) {
+  if (!phone) return '';
+
+  const digits = String(phone).trim().replace(/\D/g, '');
+  if (!digits) return '';
+
+  if (digits.length === 9) {
+    return `+998${digits}`;
+  }
+
+  return `+${digits}`;
+}
+
+/**
  * JWT token'dan role'ni xavfsiz o'qib, normallashtirilgan holda qaytaradi.
  * Xato bo'lsa '' qaytaradi.
  */
 export function getRoleFromToken(token) {
   if (!token) return '';
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const raw = payload.role || payload.roles?.[0] || '';
+    const encodedPayload = token.split('.')[1];
+    if (!encodedPayload) return '';
+
+    const base64 = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    const payload = JSON.parse(atob(padded));
+    const raw = payload.role || payload.roles?.[0] || payload.authorities?.[0] || '';
     return normalizeRole(raw);
+  } catch {
+    return '';
+  }
+}
+
+export function getRoleFromStoredUser(storageKey) {
+  try {
+    const user = JSON.parse(sessionStorage.getItem(storageKey) || '{}');
+    return normalizeRole(user.role || user.roles?.[0] || '');
   } catch {
     return '';
   }

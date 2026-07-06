@@ -6,47 +6,9 @@ import Alert from '@mui/material/Alert';
 import Collapse from '@mui/material/Collapse';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import { normalizeRole, getRoleBasedRoute, clearAllSessions, normalizePhone, getRoleFromToken } from '../../utils/authUtils';
 
 const PRIMARY_DARK = '#1E2A4A';
-
-// ─── Markazlashtirilgan role normalizatsiyasi ────────────────────────
-// Backend'dan kelishi mumkin bo'lgan barcha formatlarni yagona formatga keltiradi:
-// "SUPER_ADMIN", "super_admin", "SuperAdmin", "superadmin" → "SUPERADMIN"
-// "ADMIN", "admin" → "ADMIN"
-// "TEACHER", "teacher" → "TEACHER"
-// "STUDENT", "student" → "STUDENT"
-function normalizeRole(role) {
-  if (!role) return '';
-  return String(role).toUpperCase().replace(/[-_\s]/g, '');
-}
-
-// Role asosida qaysi route'ga yo'naltirish kerakligini aniqlaydi
-// Kelajakda yangi rol qo'shilsa — faqat shu funksiyani yangilash kifoya
-function getRoleBasedRoute(role) {
-  const normalized = normalizeRole(role);
-  switch (normalized) {
-    case 'SUPERADMIN':
-    case 'ADMIN':
-      return '/dashboard';
-    case 'TEACHER':
-      return '/teacher/dashboard';
-    case 'STUDENT':
-      return '/student';
-    default:
-      return '/dashboard';
-  }
-}
-
-// Login qilishdan oldin barcha eski sessiya ma'lumotlarini tozalash
-// Bu eski rol keshlangan holda noto'g'ri panelga tushib qolishni oldini oladi
-function clearAllSessions() {
-  sessionStorage.removeItem('accessToken');
-  sessionStorage.removeItem('studentToken');
-  sessionStorage.removeItem('currentUser');
-  sessionStorage.removeItem('studentUser');
-  sessionStorage.removeItem('studentRefreshToken');
-}
-// ─────────────────────────────────────────────────────────────────────
 
 export default function Login() {
   const { lang, t } = useApp();
@@ -58,28 +20,20 @@ export default function Login() {
 
   function Submit(e) {
     e.preventDefault();
-    
-    // Faqat raqamlarni qoldirish
-    let cleanedPhone = input.phone.replace(/\D/g, '');
 
-    // 9 xonali → 998 qo'shish (masalan: 975661099 → 998975661099)
-    if (cleanedPhone.length === 9) {
-      cleanedPhone = '998' + cleanedPhone;
-    }
-    // 12 xonali bo'lishi kerak (998xxxxxxxxx)
-    const finalPhone = cleanedPhone;
-
-    const payload = { ...input, phone: finalPhone };
+    const normalizedPhone = normalizePhone(input.phone);
+    const payload = { ...input, phone: normalizedPhone, password: input.password.trim() };
 
     api.post('/auth/login', payload).then(res => {
       if (res.status === 201) {
         const auth = res.data?.accessToken;
         const rawRole = res.data?.role;
-        const normalized = normalizeRole(rawRole);
-        const targetRoute = getRoleBasedRoute(rawRole);
-
 
         if (auth) {
+          const tokenRole = getRoleFromToken(auth);
+          const normalized = normalizeRole(rawRole) || tokenRole;
+          const targetRoute = getRoleBasedRoute(normalized);
+
           // ── Yangi login oldidan eski sessiyalarni TOZALASH ──
           clearAllSessions();
 
@@ -90,11 +44,11 @@ export default function Login() {
               const tokenPayload = JSON.parse(atob(auth.split('.')[1]));
               sessionStorage.setItem('studentUser', JSON.stringify({
                 full_name: tokenPayload.full_name || tokenPayload.name || '',
-                phone: tokenPayload.phone || input.phone || '',
+                phone: tokenPayload.phone || normalizedPhone || '',
                 role: 'STUDENT',
               }));
             } catch {
-              sessionStorage.setItem('studentUser', JSON.stringify({ phone: input.phone, role: 'STUDENT' }));
+              sessionStorage.setItem('studentUser', JSON.stringify({ phone: normalizedPhone, role: 'STUDENT' }));
             }
             setSuccess(true);
             setShowToast(true);
@@ -112,11 +66,11 @@ export default function Login() {
                 const tokenPayload = JSON.parse(atob(auth.split('.')[1]));
                 sessionStorage.setItem('currentUser', JSON.stringify({
                   full_name: tokenPayload.full_name || tokenPayload.name || tokenPayload.username || '',
-                  phone: tokenPayload.phone || input.phone || '',
+                  phone: tokenPayload.phone || normalizedPhone || '',
                   role: rawRole || tokenPayload.role || 'ADMIN',
                 }));
               } catch {
-                sessionStorage.setItem('currentUser', JSON.stringify({ phone: input.phone, role: rawRole || 'ADMIN' }));
+                sessionStorage.setItem('currentUser', JSON.stringify({ phone: normalizedPhone, role: rawRole || 'ADMIN' }));
               }
             }
             setSuccess(true);
@@ -442,4 +396,3 @@ export default function Login() {
     </>
   );
 }
-

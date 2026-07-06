@@ -4,6 +4,7 @@ import Loader from "../components/UI/Loader/Loader";
 import ProtectRoute from "../components/protect/ProtectRoute";
 import GuestRoute from "../components/protect/GuestRoute";
 import StudentProtectRoute from "../components/protect/StudentProtectRoute";
+import StudentGuestRoute from "../components/protect/StudentGuestRoute";
 import TeacherProtectRoute from "../components/protect/TeacherProtectRoute";
 
 const Login               = lazy(() => import("../pages/Login/Login"));
@@ -32,6 +33,7 @@ const Default             = lazy(() => import("../pages/management/default/Defau
 const Dashboard           = lazy(() => import("../pages/dashboard/Dashboard"));
 
 const StudentLayout       = lazy(() => import("../layout/StudentLayout"));
+const StudentLogin        = lazy(() => import("../pages/student/StudentLogin"));
 const StudentDashboard    = lazy(() => import("../pages/student/StudentDashboard"));
 const StudentGroups       = lazy(() => import("../pages/student/StudentGroups"));
 const StudentPayments     = lazy(() => import("../pages/student/StudentPayments"));
@@ -106,7 +108,11 @@ const router = createBrowserRouter([
   },
   {
     path: '/student/login',
-    element: <Navigate to='/login' replace />
+    element: (
+      <StudentGuestRoute>
+        <Suspense fallback={<Loader />}><StudentLogin /></Suspense>
+      </StudentGuestRoute>
+    )
   },
 
   {
